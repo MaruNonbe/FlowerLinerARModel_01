@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>AR Train WebAR</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
@@ -15,10 +15,10 @@
       padding: 0;
       overflow: hidden;
       height: 100%;
-      background: transparent; /* 修正: 黒から透明に変更 */
+      background-color: transparent; /* 重要：ここを透明にしないと背景が見えないことがある */
     }
 
-    /* A-Frame / AR.js キャンバスを端末いっぱいに広げる */
+    /* A-Frameシーンの設定 */
     a-scene {
       position: fixed !important;
       top: 0;
@@ -27,50 +27,51 @@
       height: 100% !important;
       z-index: 1;
     }
-    
-    /* AR.jsが生成するvideoタグのスタイル補正（念の為） */
-    #arjs-video {
-      z-index: 0 !important;
-    }
 
-    /* UI ボタン */
+    /* UI ボタン群 */
     #ui {
       position: fixed;
-      bottom: 10px;
+      bottom: 20px;
       left: 0;
       width: 100%;
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
-      gap: 5px;
+      gap: 8px;
       z-index: 9999;
-      pointer-events: none; /* ボタン以外をクリックしたときに誤動作を防ぐ */
+      pointer-events: none; /* ボタン以外へのタッチをスルーさせる */
     }
     .btn {
-      pointer-events: auto; /* ボタンはクリック可能にする */
-      min-width: 64px;
+      pointer-events: auto; /* ボタン自体はタッチ可能 */
+      min-width: 60px;
       text-align: center;
       font-size: 14px;
-      padding: 6px 10px;
-      background: rgba(255, 255, 255, 0.95);
+      font-weight: bold;
+      padding: 10px 6px;
+      background: rgba(255, 255, 255, 0.8);
       border: 1px solid #333;
-      border-radius: 4px;
+      border-radius: 8px;
       cursor: pointer;
       user-select: none;
-      /* スマホでのタップ遅延対策 */
-      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation; /* ダブルタップズーム等を無効化 */
+    }
+    .btn:active {
+      background: rgba(200, 200, 200, 0.9);
     }
 
-    /* 状態メッセージ表示 */
+    /* 状態メッセージ */
     #status {
       position: fixed;
-      top: 8px;
-      left: 8px;
-      right: 8px;
-      padding: 4px 8px;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      padding: 6px;
       font-size: 14px;
+      text-align: center;
       color: #0f0;
-      background: rgba(0,0,0,0.4);
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 4px;
       z-index: 9999;
       pointer-events: none;
     }
@@ -78,7 +79,7 @@
 </head>
 <body>
 
-<div id="status">カメラ起動中...</div>
+<div id="status">カメラ起動中... マーカーを用意してください</div>
 
 <a-scene
   vr-mode-ui="enabled: false"
@@ -97,39 +98,46 @@
 </a-scene>
 
 <div id="ui">
-  <div class="btn" id="btn-forward">↑</div>
-  <div class="btn" id="btn-backward">↓</div>
-  <div class="btn" id="btn-left">←</div>
-  <div class="btn" id="btn-right">→</div>
-  <div class="btn" id="btn-curve-right">↺右カーブ</div>
-  <div class="btn" id="btn-curve-left">↻左カーブ</div>
+  <div class="btn" id="btn-forward">前進</div>
+  <div class="btn" id="btn-backward">後進</div>
+  
+  <div class="btn" id="btn-left">その場左</div>
+  <div class="btn" id="btn-right">その場右</div>
+  <div class="btn" id="btn-curve-left">左カーブ</div>
+  <div class="btn" id="btn-curve-right">右カーブ</div>
 
-  <div class="btn" id="btn-up">⬆️</div>
-  <div class="btn" id="btn-down">⬇️</div>
+  <div class="btn" id="btn-up">上へ</div>
+  <div class="btn" id="btn-down">下へ</div>
 
-  <div class="btn" id="btn-face">顔写真設定</div>
-  <div class="btn" id="btn-face-rotate-y">顔Y🔄</div>
-  <div class="btn" id="btn-face-rotate-x">顔X🔄</div>
-  <div class="btn" id="btn-face-x-plus">顔X＋</div>
-  <div class="btn" id="btn-face-x-minus">顔X－</div>
-  <div class="btn" id="btn-face-y-plus">顔Y＋</div>
-  <div class="btn" id="btn-face-y-minus">顔Y－</div>
+  <div class="btn" id="btn-face">顔写真</div>
+  <div class="btn" id="btn-face-rotate-y">顔回転Y</div>
+  <div class="btn" id="btn-face-rotate-x">顔回転X</div>
+  <div class="btn" id="btn-face-x-plus">顔X+</div>
+  <div class="btn" id="btn-face-x-minus">顔X-</div>
+  <div class="btn" id="btn-face-y-plus">顔Y+</div>
+  <div class="btn" id="btn-face-y-minus">顔Y-</div>
 
-  <div class="btn" id="btn-zoom-in">＋</div>
-  <div class="btn" id="btn-zoom-out">－</div>
-
-  <div class="btn" id="btn-capture">📸</div>
-  <div class="btn" id="btn-record">🎥</div>
-  <div class="btn" id="btn-share">📤</div>
+  <div class="btn" id="btn-zoom-in">拡大</div>
+  <div class="btn" id="btn-zoom-out">縮小</div>
+  <div class="btn" id="btn-capture">撮影</div>
+  <div class="btn" id="btn-record">録画</div>
+  <div class="btn" id="btn-share">共有</div>
 </div>
 
 <script>
+/* ========== 初期設定 ========== */
 const statusEl    = document.getElementById('status');
 const train       = document.querySelector('#train');
-let   facePlate   = null;   // モデル内の a_Plate（または代替平面）
-let   forwardAxis = 'z';
+let   facePlate   = null;
+let   forwardAxis = 'z'; // 自動判定で上書きされます
 const FORWARD_SIGN = 1;
 
+// ★カーブ設定（半径を小さくして、室内で曲がりやすく調整）
+let curveRadius = 0.6; // メートル
+const MOVE_SPEED   = 0.05; // 少しゆっくりに（制御しやすくするため）
+const ROTATE_SPEED = 1.0;  // その場回転の速さ
+
+// 状態フラグ
 let moving = {
   forward: false,
   backward: false,
@@ -139,46 +147,35 @@ let moving = {
   curveLeft: false
 };
 
-let curveRadius = 2.0;
-let zoomLevel   = 0.5;
-let recording   = false, recorder, chunks = [];
+let zoomLevel = 0.5;
+let recording = false, recorder, chunks = [];
 let faceRotationY = 0;
 let faceRotationX = 0;
 
-const MOVE_SPEED   = 0.15;
-const ROTATE_SPEED = 1.0;
-
-/* 修正点: 
-  ここで navigator.mediaDevices.getUserMedia を呼び出すブロックを削除しました。
-  AR.jsが内部でカメラを呼び出す処理と競合しなくなるため、
-  スマホでも正常に背景が表示されるようになります。
-*/
-
-/* ========== モデル読み込み後の処理（向き判定・a_Plate取得） ========== */
+/* ========== モデル読み込み完了時の処理 ========== */
 train.addEventListener('model-loaded', () => {
   const root = train.getObject3D('mesh');
   if (!root) return;
 
-  // a_Plate を取得（なければ null のまま）
+  // 顔写真用プレートを探す
   facePlate = root.getObjectByName('a_Plate') ||
               root.getObjectByProperty('name', 'a_Plate');
 
-  // 列車の長手方向を推定（X or Z）
+  // モデルの向き（長手方向）を判定
   const box = new THREE.Box3().setFromObject(root);
   const size = new THREE.Vector3();
   box.getSize(size);
   forwardAxis = (size.x > size.z) ? 'x' : 'z';
 
-  // カメラから 2m・高さ1.5mの位置で、列車前面を見るようにスタート
+  // 初期位置のリセット
   const obj = train.object3D;
-  obj.position.set(0, 0, -2);   // カメラ前方 2m
-  obj.rotation.set(0, 0, 0);    // 正面をカメラに向ける（モデルの向きに応じて調整可）
+  obj.position.set(0, 0, -2);
+  obj.rotation.set(0, 0, 0);
 
-  // AR.jsの準備が整い、モデルが出た時点でメッセージ更新
-  statusEl.textContent = 'Hiroマーカーをカメラに映してください。';
+  statusEl.textContent = 'Hiroマーカーを映してください';
 });
 
-/* ========== 前方ベクトル（ローカル→ワールド） ========== */
+/* ========== 進行方向ベクトル計算 ========== */
 function getForwardWorld(obj) {
   const local = (forwardAxis === 'x')
     ? new THREE.Vector3(FORWARD_SIGN, 0, 0)
@@ -186,70 +183,101 @@ function getForwardWorld(obj) {
   return local.applyQuaternion(obj.quaternion).normalize();
 }
 
-/* ========== 移動処理 ========== */
+/* ========== 移動ループ（毎フレーム実行） ========== */
 function moveTrain() {
   const obj = train.object3D;
   const pos = obj.position;
 
-  const dir = moving.forward ? 1 : (moving.backward ? -1 : 0);
-  const turn = moving.left ? 1 : (moving.right ? -1 : 0);
-  const curveRight = moving.curveRight;
-  const curveLeft  = moving.curveLeft;
+  // 入力状態の整理
+  const isMovingForward  = moving.forward;
+  const isMovingBackward = moving.backward;
+  const isTurningLeft    = moving.left;
+  const isTurningRight   = moving.right;
+  const isCurvingLeft    = moving.curveLeft;
+  const isCurvingRight   = moving.curveRight;
 
-  if (dir !== 0 && (turn !== 0 || curveRight || curveLeft)) {
+  // 進行方向 (1:前, -1:後, 0:停止)
+  const dir = isMovingForward ? 1 : (isMovingBackward ? -1 : 0);
+
+  // カーブ処理 (前進または後進中のみ有効)
+  if (dir !== 0 && (isCurvingLeft || isCurvingRight)) {
     const v = dir * MOVE_SPEED;
-    const turnSign = curveRight ? -1 : (curveLeft ? 1 : turn);
+    // 右カーブなら -1, 左カーブなら 1
+    // (後進時も見たままの方向に曲がるよう単純化しています)
+    const turnSign = isCurvingRight ? -1 : 1;
+    
+    // 角速度 ω = v / r
     const omega = (turnSign * v) / curveRadius;
-    obj.rotation.y += omega;
-    pos.addScaledVector(getForwardWorld(obj), v);
-  } else if (dir !== 0) {
+    
+    obj.rotation.y += omega; // 回転
+    pos.addScaledVector(getForwardWorld(obj), v); // 前進
+  }
+  // 直進のみ
+  else if (dir !== 0) {
     pos.addScaledVector(getForwardWorld(obj), dir * MOVE_SPEED);
-  } else if (turn !== 0) {
-    obj.rotation.y += turn * ROTATE_SPEED * Math.PI / 180;
+  }
+  // その場回転のみ
+  else if (isTurningLeft || isTurningRight) {
+    const turnDir = isTurningLeft ? 1 : -1;
+    obj.rotation.y += turnDir * ROTATE_SPEED * (Math.PI / 180);
   }
 
+  // いずれかのボタンが押されていればループ継続
   if (Object.values(moving).some(v => v)) {
     requestAnimationFrame(moveTrain);
   }
 }
 
-/* ========== ボタン設定 ========== */
+/* ========== ボタンイベント登録 ========== */
 function setupButton(id, key) {
   const btn = document.getElementById(id);
   if (!btn) return;
-  // スマホでの操作性を考慮して touchstart を優先
-  btn.addEventListener('touchstart', (e) => {
-    moving[key] = true;
-    moveTrain();
-    e.preventDefault(); // ダブルタップ拡大などを防ぐ
-  }, { passive: false });
-  
-  btn.addEventListener('mousedown', (e) => {
-    moving[key] = true;
-    moveTrain();
-  });
 
-  const stopMove = (e) => {
+  const start = (e) => {
+    // スマホでの長押し選択やスクロールを防ぐ
+    if (e.cancelable) e.preventDefault();
+    moving[key] = true;
+    moveTrain();
+  };
+  
+  const end = (e) => {
+    if (e.cancelable) e.preventDefault();
     moving[key] = false;
-    // e.preventDefault(); // ここは状況によるが基本は不要
   };
 
-  btn.addEventListener('touchend', stopMove);
-  btn.addEventListener('mouseup', stopMove);
-  btn.addEventListener('mouseleave', stopMove);
+  // タッチイベント (スマホ用)
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend', end);
+  
+  // マウスイベント (PC用)
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', end);
+  btn.addEventListener('mouseleave', end);
 }
 
+// ボタンIDとフラグの紐付け
 setupButton('btn-forward',    'forward');
 setupButton('btn-backward',   'backward');
 setupButton('btn-left',       'left');
 setupButton('btn-right',      'right');
-setupButton('btn-curve-right','curveRight');
 setupButton('btn-curve-left', 'curveLeft');
+setupButton('btn-curve-right','curveRight');
 
+/* ========== その他機能ボタン ========== */
 document.getElementById('btn-up').onclick    = () => { train.object3D.position.y += 0.1; };
 document.getElementById('btn-down').onclick = () => { train.object3D.position.y -= 0.1; };
 
-/* ========== 顔写真貼り付け ========== */
+// ズーム
+document.getElementById('btn-zoom-in').onclick = () => {
+  zoomLevel += 0.1;
+  train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
+};
+document.getElementById('btn-zoom-out').onclick = () => {
+  zoomLevel = Math.max(0.1, zoomLevel - 0.1);
+  train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
+};
+
+// 顔写真設定
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file';
@@ -263,98 +291,61 @@ document.getElementById('btn-face').onclick = () => {
       new THREE.TextureLoader().load(url, tex => {
         tex.flipY = false;
         tex.encoding = THREE.sRGBEncoding;
-        tex.needsUpdate = true;
-
+        
         if (facePlate) {
           facePlate.material.map = tex;
           facePlate.material.needsUpdate = true;
-          facePlate.rotation.y = faceRotationY;
-          facePlate.rotation.x = faceRotationX;
         } else {
-          // モデル内に a_Plate がない場合の代替平面
-          const geo = new THREE.PlaneGeometry(1.0, 1.0);
+          // プレートがない場合の予備作成
+          const geo = new THREE.PlaneGeometry(1, 1);
           const mat = new THREE.MeshBasicMaterial({
-            map: tex,
-            transparent: true,
-            side: THREE.DoubleSide,
-            depthTest: false,
-            depthWrite: false
+            map: tex, transparent: true, side: THREE.DoubleSide
           });
           const mesh = new THREE.Mesh(geo, mat);
-          // 位置はモデルに合わせて調整が必要かもしれません
-          mesh.position.set(0.5, 2.8, -0.3);
-          mesh.rotation.y = faceRotationY;
-          mesh.rotation.x = faceRotationX;
-          mesh.renderOrder = 10;
+          mesh.position.set(0.5, 2.8, -0.3); // 仮の位置
           train.object3D.add(mesh);
           facePlate = mesh;
         }
       });
     };
-
-    if (train.getObject3D('mesh')) {
-      applyToPlate();
-    } else {
-      train.addEventListener('model-loaded', applyToPlate, { once: true });
-    }
+    if (train.getObject3D('mesh')) applyToPlate();
+    else train.addEventListener('model-loaded', applyToPlate, { once: true });
   };
   input.click();
 };
 
-document.getElementById('btn-face-rotate-y').onclick = () => {
-  if (facePlate) {
-    faceRotationY += Math.PI / 2;
-    facePlate.rotation.y = faceRotationY;
-  }
-};
-document.getElementById('btn-face-rotate-x').onclick = () => {
-  if (facePlate) {
-    faceRotationX += Math.PI / 2;
-    facePlate.rotation.x = faceRotationX;
-  }
-};
-
-document.getElementById('btn-face-x-plus').onclick  = () => { if (facePlate) facePlate.position.x += 0.05; };
+// 顔位置・回転調整
+document.getElementById('btn-face-rotate-y').onclick = () => { if (facePlate) facePlate.rotation.y += Math.PI/2; };
+document.getElementById('btn-face-rotate-x').onclick = () => { if (facePlate) facePlate.rotation.x += Math.PI/2; };
+document.getElementById('btn-face-x-plus').onclick = () => { if (facePlate) facePlate.position.x += 0.05; };
 document.getElementById('btn-face-x-minus').onclick = () => { if (facePlate) facePlate.position.x -= 0.05; };
-document.getElementById('btn-face-y-plus').onclick  = () => { if (facePlate) facePlate.position.y += 0.05; };
+document.getElementById('btn-face-y-plus').onclick = () => { if (facePlate) facePlate.position.y += 0.05; };
 document.getElementById('btn-face-y-minus').onclick = () => { if (facePlate) facePlate.position.y -= 0.05; };
 
-/* ========== ズーム（列車全体スケール） ========== */
-document.getElementById('btn-zoom-in').onclick = () => {
-  zoomLevel += 0.1;
-  train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
-};
-document.getElementById('btn-zoom-out').onclick = () => {
-  zoomLevel = Math.max(0.1, zoomLevel - 0.1);
-  train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
-};
-
-/* ========== スナップショット ========== */
+// 撮影
 document.getElementById('btn-capture').onclick = () => {
   const canvas = document.querySelector('canvas');
-  if (!canvas) return;
   canvas.toBlob(blob => {
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'snapshot.png';
-    a.click();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'ar-train-snap.png';
+    link.click();
   });
 };
 
-/* ========== 録画 ========== */
+// 録画
 document.getElementById('btn-record').onclick = () => {
   const canvas = document.querySelector('canvas');
-  if (!canvas) return;
-
   if (!recording) {
-    const stream = canvas.captureStream();
-    recorder = new MediaRecorder(stream);
-    recorder.ondataavailable = e => chunks.push(e.data);
+    const stream = canvas.captureStream(30);
+    recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+    recorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
     recorder.onstop = () => {
-      const b = new Blob(chunks, { type: 'video/webm' });
+      const blob = new Blob(chunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = 'recording.webm';
+      a.href = url;
+      a.download = 'ar-train-movie.webm';
       a.click();
       chunks = [];
     };
@@ -368,18 +359,28 @@ document.getElementById('btn-record').onclick = () => {
   }
 };
 
-/* ========== 共有 ========== */
+// 共有
 document.getElementById('btn-share').onclick = () => {
   if (navigator.share) {
     navigator.share({
       title: 'AR Train',
-      text: '私の運転士体験を見てね！',
+      text: 'ARで列車を運転中！',
       url: location.href
-    });
+    }).catch(console.error);
   } else {
-    alert('このブラウザは WebシェアAPI に対応していません');
+    alert('このブラウザは共有機能に対応していません');
   }
 };
+
+/* ========== ★縦横比歪み対策（追加） ========== */
+window.addEventListener('resize', () => {
+  const scene = document.querySelector('a-scene');
+  const camera = scene.camera;
+  if (camera) {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+  }
+});
 </script>
 </body>
 </html>
