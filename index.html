@@ -201,7 +201,7 @@ document.getElementById('btn-face').onclick = () => {
       /* ★重要★ ここが顔の位置を決める座標です (X, Y, Z)
          X=横(0は中央), Y=高さ, Z=奥行き(マイナスが車内側) */
       // 修正：運転席らしき位置へ移動（高さ1.75m, 奥行き-0.5m）
-      mesh.position.set(0, 2.0, -1.0); 
+      mesh.position.set(0, 2.0, -0.0); 
       
       train.object3D.add(mesh);
     });
