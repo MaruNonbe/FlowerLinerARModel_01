@@ -182,7 +182,7 @@ document.getElementById('btn-face').onclick = () => {
       // 座標設定（推定）
       // 前回の Z=2.8 が「飛び出た」なら、Z=2.4 くらいが車内表面付近と予想
       // 高さは 1.6 くらい（目の高さ）
-      mesh.position.set(0, 1.6, 2.45);
+      mesh.position.set(0.5, 2.0, 2.45);
       
       // もし列車が動いた後なら、trainの子要素に追加することで一緒に動く
       // ただし position はローカル座標になるため、scale(0.5)の影響を受けることに注意
