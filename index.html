@@ -109,7 +109,6 @@
 
 <script>
 const train = document.querySelector('#train');
-let trainSizeZ = 0; // 列車の長さを保持
 
 // パラメータ
 let speed = 0.05;
@@ -130,10 +129,7 @@ function loop() {
     
     if (state.moving !== 0) {
       // 【カーブ走行】
-      // 移動中は回転速度を落とすことで、その場回転にならず「弧」を描きます
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedCurve) * state.turning;
-      
-      // 後進時はハンドル操作を逆にする感覚（お好みで削除可）
       if (state.moving === -1) rotationAmount *= -1; 
     } else {
       // 【その場回転】
@@ -142,14 +138,11 @@ function loop() {
     mesh.rotation.y += rotationAmount;
   }
 
-  // 2. 移動処理（確実に前へ進める）
+  // 2. 移動処理
   if (state.moving !== 0) {
-    // 現在のモデルの正面（ローカルZマイナス軸）を取得
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyQuaternion(mesh.quaternion);
     forward.normalize();
-
-    // 前進・後進
     const moveDist = state.moving * speed;
     mesh.position.addScaledVector(forward, moveDist);
   }
@@ -174,7 +167,7 @@ setAction('btn-fwd', 1, 0);
 setAction('btn-back', -1, 0);
 setAction('btn-turn-left', 0, 1);
 setAction('btn-turn-right', 0, -1);
-// 斜めボタン：前進(1)しながら回転(1 or -1)
+// 斜めボタン
 setAction('btn-curve-left-fwd', 1, 1);
 setAction('btn-curve-right-fwd', 1, -1);
 setAction('btn-curve-left-back', -1, 1);
@@ -183,7 +176,7 @@ setAction('btn-curve-right-back', -1, -1);
 document.getElementById('btn-stop').addEventListener('click', (e)=>{ e.preventDefault(); state.moving=0; state.turning=0; });
 
 
-/* ========== 顔写真 自動配置ロジック ========== */
+/* ========== 顔写真 配置ロジック（修正版） ========== */
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
@@ -191,37 +184,24 @@ document.getElementById('btn-face').onclick = () => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // 既存の顔を削除
     const oldFace = train.object3D.getObjectByName('custom_face');
     if(oldFace) train.object3D.remove(oldFace);
 
-    // モデルのサイズを計測（先端を見つけるため）
-    const box = new THREE.Box3().setFromObject(train.object3D);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-    // ローカル座標系での前面位置を推定（Z軸の最大値か最小値のどちらかが顔）
-    // 一般的なGLBはZ軸方向が長さ。ここでは簡易的に「モデルの長さの半分」を先端と仮定して配置
-    // モデルのスケール(0.5)を考慮せず、バウンディングボックスはワールドサイズなので注意
-    // 安全策として、少し手前に配置するロジック
-    
-    // スケール前のローカルサイズを取得したいが、簡易的に固定値調整+微調整ボタンで対応できるよう
-    // Z位置を「モデル中心から2mくらい手前」と仮定して配置
-    // ※もし埋もれたら、このあとのコードで修正可能
-    
     const url = URL.createObjectURL(file);
     new THREE.TextureLoader().load(url, (tex) => {
       tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = true; // 上下修正済み
+      tex.flipY = true; // 上下判定
 
-      const geo = new THREE.PlaneGeometry(0.8, 0.8);
+      // 顔画像のサイズ（0.7m四方）
+      const geo = new THREE.PlaneGeometry(0.7, 0.7);
       const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = 'custom_face';
 
-      // ★顔の位置修正★
-      // 高さ1.2m、奥行きを2.5m（手前）に設定。
-      // 列車の中に埋もれる場合は、この 2.5 を増やしてください（3.0など）
-      mesh.position.set(0, 1.2, 2.8); 
+      /* ★重要★ ここが顔の位置を決める座標です (X, Y, Z)
+         X=横(0は中央), Y=高さ, Z=奥行き(マイナスが車内側) */
+      // 修正：運転席らしき位置へ移動（高さ1.75m, 奥行き-0.5m）
+      mesh.position.set(0, 1.75, -0.5); 
       
       train.object3D.add(mesh);
     });
@@ -241,6 +221,15 @@ document.getElementById('btn-capture').onclick = () => {
   const cvs = document.querySelector('canvas');
   cvs.toBlob(b=>{const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ar.png'; a.click();});
 };
+
+// 画面リサイズ時の歪み補正
+window.addEventListener('resize', () => {
+  const scene = document.querySelector('a-scene');
+  if(scene.camera) {
+    scene.camera.aspect = window.innerWidth / window.innerHeight;
+    scene.camera.updateProjectionMatrix();
+  }
+});
 </script>
 </body>
 </html>
