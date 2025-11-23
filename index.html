@@ -1,52 +1,53 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>AR Train WebXR Floor</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>AR Train WebAR</title>
+
+  <!-- 画面サイズにフィットさせるための viewport 設定 -->
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+  />
+
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+
   <style>
-    body {
+    /* 画面全体をARで使うための基本指定 */
+    html, body {
       margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       background: #000;
     }
 
-    #ar-start {
-      position: fixed;
-      top: 10px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 8px 16px;
-      z-index: 1000;
-      font-size: 16px;
-      border-radius: 999px;
-      border: none;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      cursor: pointer;
+    /* A-Frame / AR.js のシーンとキャンバスをフルスクリーンに */
+    a-scene {
+      position: fixed !important;
+      top: 0;
+      left: 0;
+      width: 100vw !important;
+      height: 100vh !important;
+      overflow: hidden;
     }
 
-    /* ★ iPhone用 USDZボタン */
-    #quicklook {
-      position: fixed;
-      top: 50px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 8px 16px;
-      z-index: 1000;
-      font-size: 14px;
-      border-radius: 999px;
-      border: none;
-      background: rgba(255, 255, 255, 0.9);
-      color: #000;
-      text-decoration: none;
-      display: inline-block;
+    /* A-Frame が内部で作る canvas にもフルスクリーンを強制 */
+    canvas,
+    .a-canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
     }
 
+    /* UI は画面上にオーバーレイ表示 */
     #ui {
       position: fixed;
-      bottom: 10px;
+      bottom: env(safe-area-inset-bottom, 10px); /* iPhoneのホームバー避け */
+      left: 0;
       width: 100%;
       display: flex;
       flex-wrap: wrap;
@@ -67,476 +68,54 @@
       cursor: pointer;
       user-select: none;
     }
-
-    #message {
-      position: fixed;
-      bottom: 80px;
-      left: 50%;
-      transform: translateX(-50%);
-      padding: 4px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      background: rgba(0, 0, 0, 0.7);
-      color: #fff;
-      z-index: 1000;
-      pointer-events: none;
-      display: none;
-    }
   </style>
 </head>
 <body>
 
-<button id="ar-start">AR開始（床に列車を置く）</button>
+  <!-- ★ フルスクリーン化のため、style で幅・高さを強制 -->
+  <!--    embedded はそのまま使用してOK（CSSで上書き） -->
+  <a-scene
+    embedded
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+    vr-mode-ui="enabled: false"
+    renderer="antialias: true; alpha: true"
+  >
+    <a-marker-camera preset="hiro">
+      <a-entity id="train"
+                gltf-model="models/AR-Train_Nagai.glb"
+                position="0 0 -1"
+                rotation="0 0 0"
+                scale="0.5 0.5 0.5">
+      </a-entity>
+    </a-marker-camera>
+  </a-scene>
 
-<!-- ★ iPhone用：USDZ（AR Quick Look） -->
-<a id="quicklook" rel="ar" href="models/AR-Train_Nagai.usdz">
-  iPhone用 AR（USDZで表示）
-</a>
+  <div id="ui">
+    <div class="btn" id="btn-forward">↑</div>
+    <div class="btn" id="btn-backward">↓</div>
+    <div class="btn" id="btn-left">←</div>
+    <div class="btn" id="btn-right">→</div>
+    <div class="btn" id="btn-curve-left">⤺左カーブ</div>
+    <div class="btn" id="btn-curve-right">右カーブ⤻</div>
+    <div class="btn" id="btn-up">⬆️</div>
+    <div class="btn" id="btn-down">⬇️</div>
+    <div class="btn" id="btn-face">顔写真設定</div>
+    <div class="btn" id="btn-face-rotate-y">🔄Y</div>
+    <div class="btn" id="btn-face-rotate-x">🔄X</div>
+    <div class="btn" id="btn-face-x-plus">顔X＋</div>
+    <div class="btn" id="btn-face-x-minus">顔X－</div>
+    <div class="btn" id="btn-face-y-plus">顔Y＋</div>
+    <div class="btn" id="btn-face-y-minus">顔Y－</div>
+    <div class="btn" id="btn-zoom-in">＋</div>
+    <div class="btn" id="btn-zoom-out">－</div>
+    <div class="btn" id="btn-capture">📸</div>
+    <div class="btn" id="btn-record">🎥</div>
+    <div class="btn" id="btn-share">📤</div>
+  </div>
 
-<div id="message"></div>
-
-<div id="ui">
-  <div class="btn" id="btn-forward">↑</div>
-  <div class="btn" id="btn-backward">↓</div>
-  <div class="btn" id="btn-left">←</div>
-  <div class="btn" id="btn-right">→</div>
-  <div class="btn" id="btn-up">⬆️</div>
-  <div class="btn" id="btn-down">⬇️</div>
-
-  <div class="btn" id="btn-face">顔写真設定</div>
-  <div class="btn" id="btn-face-rotate-y">🔄Y</div>
-  <div class="btn" id="btn-face-rotate-x">🔄X</div>
-  <div class="btn" id="btn-face-x-plus">顔X＋</div>
-  <div class="btn" id="btn-face-x-minus">顔X－</div>
-  <div class="btn" id="btn-face-y-plus">顔Y＋</div>
-  <div class="btn" id="btn-face-y-minus">顔Y－</div>
-
-  <div class="btn" id="btn-zoom-in">＋</div>
-  <div class="btn" id="btn-zoom-out">－</div>
-
-  <div class="btn" id="btn-capture">📸</div>
-  <div class="btn" id="btn-record">🎥</div>
-  <div class="btn" id="btn-share">📤</div>
-</div>
-
-<script type="module">
-  import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.module.js';
-  import { GLTFLoader } from 'https://cdn.jsdelivr.net/npm/three@0.150.0/examples/jsm/loaders/GLTFLoader.js';
-
-  // ─────────────────────────────────
-  // 基本 Three.js セットアップ
-  // ─────────────────────────────────
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setPixelRatio(window.devicePixelRatio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.xr.enabled = true;
-  renderer.xr.setReferenceSpaceType('local-floor');
-  document.body.appendChild(renderer.domElement);
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  // 照明（簡易）
-  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
-  scene.add(light);
-
-  // 列車モデル
-  let train = null;
-  let trainPlaced = false;
-  let forwardAxis = 'z';
-  const FORWARD_SIGN = 1;
-  let facePlate = null;
-
-  const loader = new GLTFLoader();
-  loader.load(
-    'models/AR-Train_Nagai.glb',
-    (gltf) => {
-      train = gltf.scene;
-      train.visible = false;
-      const initialScale = 0.5;
-      train.scale.set(initialScale, initialScale, initialScale);
-      scene.add(train);
-
-      // a_Plate を探して記録
-      facePlate = train.getObjectByName('a_Plate');
-
-      // 長手方向推定
-      const box = new THREE.Box3().setFromObject(train);
-      const sz = new THREE.Vector3();
-      box.getSize(sz);
-      forwardAxis = (sz.x > sz.z) ? 'x' : 'z';
-
-      showMessage('列車モデルを読み込みました。AR開始ボタンを押してください。');
-    },
-    undefined,
-    (err) => {
-      console.error(err);
-      showMessage('列車モデルの読み込みに失敗しました。');
-    }
-  );
-
-  // ─────────────────────────────────
-  // WebXR AR + Hit-test
-  // ─────────────────────────────────
-  const arStartButton = document.getElementById('ar-start');
-  const quicklookButton = document.getElementById('quicklook');
-  const messageEl = document.getElementById('message');
-
-  let hitTestSource = null;
-  let hitTestSourceRequested = false;
-
-  function showMessage(text, ms = 2000) {
-    messageEl.textContent = text;
-    messageEl.style.display = 'block';
-    if (ms > 0) {
-      setTimeout(() => {
-        messageEl.style.display = 'none';
-      }, ms);
-    }
-  }
-
-  async function startAR() {
-    if (!navigator.xr) {
-      alert('このブラウザは WebXR に対応していません。iPhoneの場合は「iPhone用 AR（USDZ）」ボタンをお使いください。');
-      return;
-    }
-    try {
-      const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test'],              // ★必須
-        optionalFeatures: ['local-floor', 'dom-overlay'], // ★任意
-        domOverlay: { root: document.body }
-      });
-
-      session.addEventListener('end', () => {
-        hitTestSourceRequested = false;
-        hitTestSource = null;
-        trainPlaced = false;
-        if (train) {
-          train.visible = false;
-        }
-        showMessage('ARセッションが終了しました。', 1500);
-      });
-
-      await renderer.xr.setSession(session);
-
-      showMessage('床を検出中… 少しカメラを動かしてください。');
-
-    } catch (e) {
-      console.error(e);
-      alert('ARセッションを開始できませんでした。\nこの端末では WebXR AR が十分に対応していない可能性があります。');
-    }
-  }
-
-  arStartButton.addEventListener('click', startAR);
-
-  // ★ 起動時に WebXR 対応状況をチェックして、iPhone では USDZ を案内
-  (async () => {
-    if (!('xr' in navigator)) {
-      showMessage('このブラウザは WebXR AR に対応していません。iPhoneの場合は下の「iPhone用 AR（USDZ）」ボタンをご利用ください。', 6000);
-      arStartButton.disabled = true;
-      arStartButton.style.opacity = '0.4';
-      return;
-    }
-    let supported = false;
-    try {
-      supported = await navigator.xr.isSessionSupported('immersive-ar');
-    } catch (e) {
-      supported = false;
-    }
-    if (!supported) {
-      showMessage('この端末では WebXR AR セッションが利用できません。\niPhoneの場合は「iPhone用 AR（USDZ）」ボタンをご利用ください。', 6000);
-      arStartButton.disabled = true;
-      arStartButton.style.opacity = '0.4';
-    } else {
-      // WebXR AR が使える端末では QuickLook ボタンを隠す
-      if (quicklookButton) quicklookButton.style.display = 'none';
-    }
-  })();
-
-  // ─────────────────────────────────
-  // 列車移動（前進・後退・左右カーブ）
-  // ─────────────────────────────────
-  const MOVE_SPEED = 0.5;        // m/s のイメージ
-  const ROTATE_SPEED_DEG = 60;   // deg/s
-  const curveRadius = 2.0;       // カーブ半径
-
-  const moving = { forward: false, backward: false, left: false, right: false };
-
-  function getForwardWorld(obj) {
-    if (!obj) return new THREE.Vector3(0,0,-1);
-    const local = (forwardAxis === 'x')
-      ? new THREE.Vector3(FORWARD_SIGN, 0, 0)
-      : new THREE.Vector3(0, 0, FORWARD_SIGN);
-    return local.applyQuaternion(obj.quaternion).normalize();
-  }
-
-  function setupMoveButton(id, dirKey) {
-    const btn = document.getElementById(id);
-    const start = (e) => {
-      moving[dirKey] = true;
-      e.preventDefault();
-    };
-    const end = (e) => {
-      moving[dirKey] = false;
-      e && e.preventDefault();
-    };
-    btn.addEventListener('mousedown', start);
-    btn.addEventListener('touchstart', start, { passive: false });
-    btn.addEventListener('mouseup', end);
-    btn.addEventListener('mouseleave', end);
-    btn.addEventListener('touchend', end);
-    btn.addEventListener('touchcancel', end);
-  }
-
-  setupMoveButton('btn-forward', 'forward');
-  setupMoveButton('btn-backward', 'backward');
-  setupMoveButton('btn-left', 'left');
-  setupMoveButton('btn-right', 'right');
-
-  // 上下移動（Y）
-  document.getElementById('btn-up').onclick = () => {
-    if (train && trainPlaced) train.position.y += 0.1;
-  };
-  document.getElementById('btn-down').onclick = () => {
-    if (train && trainPlaced) train.position.y -= 0.1;
-  };
-
-  // ─────────────────────────────────
-  // 顔写真機能（カメラ or 写真フォルダ）
-  // ─────────────────────────────────
-  let faceRotationY = 0;
-  let faceRotationX = 0;
-
-  document.getElementById('btn-face').onclick = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const url = URL.createObjectURL(file);
-
-      const applyToPlate = () => {
-        const texLoader = new THREE.TextureLoader();
-        texLoader.load(url, (tex) => {
-          tex.flipY = false;
-          tex.encoding = THREE.sRGBEncoding;
-          tex.needsUpdate = true;
-
-          if (facePlate) {
-            if (!Array.isArray(facePlate.material)) {
-              facePlate.material.map = tex;
-              facePlate.material.transparent = true;
-              facePlate.material.needsUpdate = true;
-            }
-            facePlate.rotation.y = faceRotationY;
-            facePlate.rotation.x = faceRotationX;
-          } else if (train) {
-            const geo = new THREE.PlaneGeometry(1.0, 1.0);
-            const mat = new THREE.MeshBasicMaterial({
-              map: tex,
-              transparent: true,
-              side: THREE.DoubleSide,
-              depthTest: false,
-              depthWrite: false
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(0.5, 2.8, -0.3);
-            mesh.rotation.y = faceRotationY;
-            mesh.rotation.x = faceRotationX;
-            mesh.renderOrder = 10;
-            train.add(mesh);
-            facePlate = mesh;
-          }
-
-          showMessage('顔写真を運転席に配置しました。', 1500);
-        });
-      };
-
-      if (train) {
-        applyToPlate();
-      } else {
-        loader.manager.onLoad = applyToPlate;
-      }
-    };
-    input.click();
-  };
-
-  document.getElementById('btn-face-rotate-y').onclick = () => {
-    if (facePlate) {
-      faceRotationY += Math.PI / 2;
-      facePlate.rotation.y = faceRotationY;
-    }
-  };
-
-  document.getElementById('btn-face-rotate-x').onclick = () => {
-    if (facePlate) {
-      faceRotationX += Math.PI / 2;
-      facePlate.rotation.x = faceRotationX;
-    }
-  };
-
-  document.getElementById('btn-face-x-plus').onclick = () => {
-    if (facePlate) facePlate.position.x += 0.05;
-  };
-  document.getElementById('btn-face-x-minus').onclick = () => {
-    if (facePlate) facePlate.position.x -= 0.05;
-  };
-  document.getElementById('btn-face-y-plus').onclick = () => {
-    if (facePlate) facePlate.position.y += 0.05;
-  };
-  document.getElementById('btn-face-y-minus').onclick = () => {
-    if (facePlate) facePlate.position.y -= 0.05;
-  };
-
-  // ズーム（列車スケール）
-  let zoomLevel = 0.5;
-  document.getElementById('btn-zoom-in').onclick = () => {
-    if (!train) return;
-    zoomLevel += 0.1;
-    train.scale.set(zoomLevel, zoomLevel, zoomLevel);
-  };
-  document.getElementById('btn-zoom-out').onclick = () => {
-    if (!train) return;
-    zoomLevel = Math.max(0.1, zoomLevel - 0.1);
-    train.scale.set(zoomLevel, zoomLevel, zoomLevel);
-  };
-
-  // ─────────────────────────────────
-  // 写真撮影・録画・SNS共有
-  // ─────────────────────────────────
-  document.getElementById('btn-capture').onclick = () => {
-    const canvas = renderer.domElement;
-    canvas.toBlob((blob) => {
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'snapshot.png';
-      a.click();
-    });
-  };
-
-  let recording = false;
-  let recorder = null;
-  let chunks = [];
-
-  document.getElementById('btn-record').onclick = () => {
-    const canvas = renderer.domElement;
-    if (!recording) {
-      const stream = canvas.captureStream();
-      recorder = new MediaRecorder(stream);
-      recorder.ondataavailable = (e) => chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'recording.webm';
-        a.click();
-        chunks = [];
-      };
-      recorder.start();
-      recording = true;
-      showMessage('録画開始', 1000);
-    } else {
-      recorder.stop();
-      recording = false;
-      showMessage('録画終了', 1000);
-    }
-  };
-
-  document.getElementById('btn-share').onclick = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'AR Train',
-        text: 'ARで運転席から列車を運転してみました！',
-        url: location.href
-      }).catch((e) => {
-        console.log(e);
-      });
-    } else {
-      alert('このブラウザはWebシェアAPIに対応していません');
-    }
-  };
-
-  // ─────────────────────────────────
-  // アニメーションループ & Hit-test
-  // ─────────────────────────────────
-  let prevTime = null;
-
-  renderer.setAnimationLoop((time, frame) => {
-    let dt = 0;
-    if (prevTime !== null) {
-      dt = (time - prevTime) / 1000;
-    }
-    prevTime = time;
-
-    const session = renderer.xr.getSession();
-
-    if (session && frame) {
-      if (!hitTestSourceRequested) {
-        session.requestReferenceSpace('viewer').then((viewerRefSpace) => {
-          session.requestHitTestSource({ space: viewerRefSpace }).then((source) => {
-            hitTestSource = source;
-          });
-        });
-        hitTestSourceRequested = true;
-      }
-
-      if (hitTestSource) {
-        const refSpace = renderer.xr.getReferenceSpace();
-        const hits = frame.getHitTestResults(hitTestSource);
-        if (hits.length > 0 && train && !trainPlaced) {
-          const hit = hits[0];
-          const pose = hit.getPose(refSpace);
-          if (pose) {
-            train.visible = true;
-            train.position.set(
-              pose.transform.position.x,
-              pose.transform.position.y,
-              pose.transform.position.z
-            );
-            const q = pose.transform.orientation;
-            train.quaternion.set(q.x, q.y, q.z, q.w);
-
-            trainPlaced = true;
-            showMessage('列車を床に配置しました。ボタンで操作できます。', 2500);
-          }
-        }
-      }
-    }
-
-    // 列車移動
-    if (train && trainPlaced && dt > 0) {
-      const dir = moving.forward ? 1 : (moving.backward ? -1 : 0);
-      const turn = moving.left ? 1 : (moving.right ? -1 : 0);
-
-      if (dir !== 0 || turn !== 0) {
-        const v = dir * MOVE_SPEED * dt;
-        const forward = getForwardWorld(train);
-
-        if (dir !== 0 && turn !== 0) {
-          const omega = (turn * v) / curveRadius;
-          train.rotation.y += omega;
-          train.position.addScaledVector(forward, v);
-        } else if (dir !== 0) {
-          train.position.addScaledVector(forward, v);
-        } else if (turn !== 0) {
-          const rotRad = THREE.MathUtils.degToRad(ROTATE_SPEED_DEG * dt * turn);
-          train.rotation.y += rotRad;
-        }
-      }
-    }
-
-    renderer.render(scene, camera);
-  });
-</script>
-
+  <!-- ↓↓↓ ここから下は、以前お渡しした script 部分をそのまま入れてください ↓↓↓ -->
+  <script>
+    /* ここに前回までの train / moveTrain / 顔写真 / 録画 / シェアなどのJSをそのまま貼る */
+  </script>
 </body>
 </html>
