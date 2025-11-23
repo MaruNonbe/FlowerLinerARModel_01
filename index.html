@@ -27,6 +27,23 @@
       cursor: pointer;
     }
 
+    /* ★ iPhone用 USDZボタン */
+    #quicklook {
+      position: fixed;
+      top: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 16px;
+      z-index: 1000;
+      font-size: 14px;
+      border-radius: 999px;
+      border: none;
+      background: rgba(255, 255, 255, 0.9);
+      color: #000;
+      text-decoration: none;
+      display: inline-block;
+    }
+
     #ui {
       position: fixed;
       bottom: 10px;
@@ -70,6 +87,12 @@
 <body>
 
 <button id="ar-start">AR開始（床に列車を置く）</button>
+
+<!-- ★ iPhone用：USDZ（AR Quick Look） -->
+<a id="quicklook" rel="ar" href="models/AR-Train_Nagai.usdz">
+  iPhone用 AR（USDZで表示）
+</a>
+
 <div id="message"></div>
 
 <div id="ui">
@@ -162,6 +185,7 @@
   // WebXR AR + Hit-test
   // ─────────────────────────────────
   const arStartButton = document.getElementById('ar-start');
+  const quicklookButton = document.getElementById('quicklook');
   const messageEl = document.getElementById('message');
 
   let hitTestSource = null;
@@ -179,12 +203,13 @@
 
   async function startAR() {
     if (!navigator.xr) {
-      alert('このブラウザは WebXR に対応していません。');
+      alert('このブラウザは WebXR に対応していません。iPhoneの場合は「iPhone用 AR（USDZ）」ボタンをお使いください。');
       return;
     }
     try {
       const session = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['hit-test', 'local-floor', 'dom-overlay'],
+        requiredFeatures: ['hit-test'],              // ★必須
+        optionalFeatures: ['local-floor', 'dom-overlay'], // ★任意
         domOverlay: { root: document.body }
       });
 
@@ -204,11 +229,35 @@
 
     } catch (e) {
       console.error(e);
-      alert('ARセッションを開始できませんでした。');
+      alert('ARセッションを開始できませんでした。\nこの端末では WebXR AR が十分に対応していない可能性があります。');
     }
   }
 
   arStartButton.addEventListener('click', startAR);
+
+  // ★ 起動時に WebXR 対応状況をチェックして、iPhone では USDZ を案内
+  (async () => {
+    if (!('xr' in navigator)) {
+      showMessage('このブラウザは WebXR AR に対応していません。iPhoneの場合は下の「iPhone用 AR（USDZ）」ボタンをご利用ください。', 6000);
+      arStartButton.disabled = true;
+      arStartButton.style.opacity = '0.4';
+      return;
+    }
+    let supported = false;
+    try {
+      supported = await navigator.xr.isSessionSupported('immersive-ar');
+    } catch (e) {
+      supported = false;
+    }
+    if (!supported) {
+      showMessage('この端末では WebXR AR セッションが利用できません。\niPhoneの場合は「iPhone用 AR（USDZ）」ボタンをご利用ください。', 6000);
+      arStartButton.disabled = true;
+      arStartButton.style.opacity = '0.4';
+    } else {
+      // WebXR AR が使える端末では QuickLook ボタンを隠す
+      if (quicklookButton) quicklookButton.style.display = 'none';
+    }
+  })();
 
   // ─────────────────────────────────
   // 列車移動（前進・後退・左右カーブ）
@@ -268,7 +317,6 @@
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    // iOS でカメラも使えるようにヒント
     input.capture = 'environment';
 
     input.onchange = (e) => {
@@ -284,7 +332,6 @@
           tex.needsUpdate = true;
 
           if (facePlate) {
-            // 既存 a_Plate に貼る
             if (!Array.isArray(facePlate.material)) {
               facePlate.material.map = tex;
               facePlate.material.transparent = true;
@@ -293,7 +340,6 @@
             facePlate.rotation.y = faceRotationY;
             facePlate.rotation.x = faceRotationX;
           } else if (train) {
-            // a_Plate がない場合はPlaneを新規追加
             const geo = new THREE.PlaneGeometry(1.0, 1.0);
             const mat = new THREE.MeshBasicMaterial({
               map: tex,
@@ -425,7 +471,6 @@
   let prevTime = null;
 
   renderer.setAnimationLoop((time, frame) => {
-    // dt計算
     let dt = 0;
     if (prevTime !== null) {
       dt = (time - prevTime) / 1000;
@@ -434,7 +479,6 @@
 
     const session = renderer.xr.getSession();
 
-    // Hit-test セットアップ
     if (session && frame) {
       if (!hitTestSourceRequested) {
         session.requestReferenceSpace('viewer').then((viewerRefSpace) => {
@@ -458,7 +502,6 @@
               pose.transform.position.y,
               pose.transform.position.z
             );
-            // 向きも床法線に合わせるが、Y回転はそのままにしておくことも多い
             const q = pose.transform.orientation;
             train.quaternion.set(q.x, q.y, q.z, q.w);
 
@@ -469,25 +512,22 @@
       }
     }
 
-    // 列車移動（ボタン押しっぱなし中）
+    // 列車移動
     if (train && trainPlaced && dt > 0) {
       const dir = moving.forward ? 1 : (moving.backward ? -1 : 0);
       const turn = moving.left ? 1 : (moving.right ? -1 : 0);
 
       if (dir !== 0 || turn !== 0) {
-        const v = dir * MOVE_SPEED * dt; // 前後の移動量
+        const v = dir * MOVE_SPEED * dt;
         const forward = getForwardWorld(train);
 
         if (dir !== 0 && turn !== 0) {
-          // カーブ走行
-          const omega = (turn * v) / curveRadius; // rad
+          const omega = (turn * v) / curveRadius;
           train.rotation.y += omega;
           train.position.addScaledVector(forward, v);
         } else if (dir !== 0) {
-          // 直進のみ
           train.position.addScaledVector(forward, v);
         } else if (turn !== 0) {
-          // その場で旋回
           const rotRad = THREE.MathUtils.degToRad(ROTATE_SPEED_DEG * dt * turn);
           train.rotation.y += rotRad;
         }
