@@ -3,33 +3,38 @@
 <head>
   <meta charset="UTF-8" />
   <title>AR Train WebAR</title>
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  />
 
+  <!-- A-Frame & AR.js -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+  <!-- THREE は A-Frame 内部にもありますが、念のため個別読み込みしておきます -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
 
   <style>
     html, body {
       margin: 0;
       padding: 0;
+      width: 100%;
       height: 100%;
       overflow: hidden;
       background: #000;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
     }
 
-    /* AR部分を常にフルスクリーンにする */
+    /* AR 画面を常にフルスクリーンにする */
     a-scene {
-      position: fixed !important;
+      position: fixed;
       top: 0;
       left: 0;
-      width: 100vw !important;
-      height: 100vh !important;
+      width: 100vw;
+      height: 100vh;
       z-index: 1;
     }
 
-    /* UIボタン */
     #ui {
       position: fixed;
       bottom: 10px;
@@ -42,6 +47,7 @@
       z-index: 10;
       pointer-events: auto;
     }
+
     .btn {
       min-width: 60px;
       text-align: center;
@@ -57,33 +63,35 @@
 </head>
 
 <body>
-  <!-- ARシーン：Hiroマーカー＋カメラ -->
-  <a-scene
-    vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true;"
-    embedded
-    arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
 
-    <!-- マーカーに追従するカメラ -->
+  <!-- ★ マーカー Hiro を使った AR シーン（フルスクリーン） -->
+  <a-scene
+    embedded
+    vr-mode-ui="enabled: false"
+    renderer="alpha: true; antialias: true"
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+  >
+    <!-- マーカー付きカメラ（Hiro マーカー使用） -->
     <a-marker-camera preset="hiro">
-      <!-- 列車：カメラから約2m前方・少し持ち上げる -->
-      <a-entity id="train"
-                gltf-model="models/AR-Train_Nagai.glb"
-                position="0 0.3 -2"
-                rotation="0 0 0"
-                scale="0.5 0.5 0.5">
+      <!-- 列車モデル：カメラの前方 1m に配置 -->
+      <a-entity
+        id="train"
+        gltf-model="models/AR-Train_Nagai.glb"
+        position="0 0 -1"
+        rotation="0 0 0"
+        scale="0.5 0.5 0.5">
       </a-entity>
     </a-marker-camera>
   </a-scene>
 
-  <!-- UIボタン群 -->
+  <!-- UI ボタン群 -->
   <div id="ui">
     <div class="btn" id="btn-forward">↑</div>
     <div class="btn" id="btn-backward">↓</div>
     <div class="btn" id="btn-left">←</div>
     <div class="btn" id="btn-right">→</div>
-    <div class="btn" id="btn-curve-right">→右カーブ</div>
-    <div class="btn" id="btn-curve-left">←左カーブ</div>
+    <div class="btn" id="btn-curve-right">↪右カーブ</div>
+    <div class="btn" id="btn-curve-left">↩左カーブ</div>
 
     <div class="btn" id="btn-up">⬆️</div>
     <div class="btn" id="btn-down">⬇️</div>
@@ -106,84 +114,85 @@
 
   <script>
     const train = document.querySelector('#train');
-    let facePlate = null;                  // GLB内の a_Plate
+
+    // 顔写真を貼るための Mesh（a_Plate を優先）
+    let facePlate = null;
+    let faceRotationY = 0;
+    let faceRotationX = 0;
+
+    // 前進・後退・左右カーブ
+    const MOVE_SPEED = 0.15;      // 1フレームあたりの移動幅
+    const ROTATE_SPEED = 1.0;     // その場旋回（deg/frame）
+    const curveRadius = 2.0;      // カーブ半径（見た目用）
+
     let forwardAxis = 'z';
     const FORWARD_SIGN = 1;
+    let zoomLevel = 0.5;
 
     let moving = {
       forward: false,
       backward: false,
       left: false,
-      right: false,
-      curveLeft: false,
-      curveRight: false
+      right: false
     };
 
-    let zoomLevel = 0.5;
-    let recording = false, recorder, chunks = [];
-    let faceRotationY = 0;
-    let faceRotationX = 0;
+    let recording = false;
+    let recorder = null;
+    let chunks = [];
 
-    const MOVE_SPEED = 0.15;      // 移動速度
-    const ROTATE_SPEED = 1.0;     // その場旋回角度(度)
-    const CURVE_RADIUS = 2.0;     // カーブ半径[m]
+    // 画面サイズに合わせて a-scene を調整（念のため）
+    function resizeScene() {
+      const sceneEl = document.querySelector('a-scene');
+      if (!sceneEl) return;
+      sceneEl.style.width = window.innerWidth + 'px';
+      sceneEl.style.height = window.innerHeight + 'px';
+    }
+    window.addEventListener('resize', resizeScene);
+    window.addEventListener('orientationchange', resizeScene);
+    window.addEventListener('load', resizeScene);
 
-    // ─────────────────────
-    // モデル読み込み時：a_Plate取得＋長手方向推定
-    // ─────────────────────
+    // モデル読み込み完了時
     train.addEventListener('model-loaded', () => {
       const root = train.getObject3D('mesh');
       if (!root) return;
 
-      // 運転席用プレート
-      facePlate = root.getObjectByName('a_Plate') ||
-                  root.getObjectByProperty('name', 'a_Plate');
+      // 1) a_Plate を取得
+      facePlate =
+        root.getObjectByName('a_Plate') ||
+        root.getObjectByProperty('name', 'a_Plate') ||
+        null;
 
-      // 長手方向判定
+      // 2) 長手方向（X/Z の長い方）を推定して、前進方向に使う
       const box = new THREE.Box3().setFromObject(root);
-      const sz = new THREE.Vector3();
-      box.getSize(sz);
-      forwardAxis = (sz.x > sz.z) ? 'x' : 'z';
+      const size = new THREE.Vector3();
+      box.getSize(size);
+      forwardAxis = (size.x > size.z) ? 'x' : 'z';
     });
 
-    // ローカル前方ベクトルをワールドに変換
-    function getForwardWorld(obj3d) {
+    // 列車ローカルの「前方向」をワールド座標に変換
+    function getForwardWorld(obj3D) {
       const local = (forwardAxis === 'x')
         ? new THREE.Vector3(FORWARD_SIGN, 0, 0)
         : new THREE.Vector3(0, 0, FORWARD_SIGN);
-      return local.applyQuaternion(obj3d.quaternion).normalize();
+      return local.applyQuaternion(obj3D.quaternion).normalize();
     }
 
-    // ─────────────────────
-    // 列車の移動処理
-    // ─────────────────────
+    // 移動処理（requestAnimationFrame ループ）
     function moveTrain() {
       const obj = train.object3D;
       const pos = obj.position;
 
-      // 基本はボタン状態から決定
-      let dir = moving.forward ? 1 : (moving.backward ? -1 : 0);
-      let turn = moving.left ? 1 : (moving.right ? -1 : 0);
-
-      // カーブ専用ボタン（常に前進＋旋回）
-      if (moving.curveLeft)  { dir = 1; turn = 1; }
-      if (moving.curveRight) { dir = 1; turn = -1; }
-
-      if (dir === 0 && turn === 0) return;
-
-      const v = dir * MOVE_SPEED;
-      const forward = getForwardWorld(obj);
+      const dir = moving.forward ? 1 : (moving.backward ? -1 : 0);
+      const turn = moving.left ? 1 : (moving.right ? -1 : 0);
 
       if (dir !== 0 && turn !== 0) {
-        // カーブ走行
-        const omega = (turn * v) / CURVE_RADIUS;
+        const v = dir * MOVE_SPEED;
+        const omega = (turn * v) / curveRadius;
         obj.rotation.y += omega;
-        pos.addScaledVector(forward, v);
+        pos.addScaledVector(getForwardWorld(obj), v);
       } else if (dir !== 0) {
-        // 直進／後退
-        pos.addScaledVector(forward, v);
+        pos.addScaledVector(getForwardWorld(obj), dir * MOVE_SPEED);
       } else if (turn !== 0) {
-        // その場旋回
         obj.rotation.y += turn * ROTATE_SPEED * Math.PI / 180;
       }
 
@@ -192,9 +201,10 @@
       }
     }
 
-    // ボタン長押し用ヘルパー
-    function setupButton(id, key) {
-      const btn = document.getElementById(id);
+    // ボタン長押しで移動
+    function setupButton(btnId, key) {
+      const btn = document.getElementById(btnId);
+
       const start = (e) => {
         moving[key] = true;
         moveTrain();
@@ -204,6 +214,7 @@
         moving[key] = false;
         e && e.preventDefault();
       };
+
       btn.addEventListener('mousedown', start);
       btn.addEventListener('touchstart', start, { passive: false });
       btn.addEventListener('mouseup', end);
@@ -212,66 +223,104 @@
       btn.addEventListener('touchcancel', end);
     }
 
-    ['forward','backward','left','right'].forEach(id => setupButton(`btn-${id}`, id));
-    setupButton('btn-curve-left',  'curveLeft');
-    setupButton('btn-curve-right', 'curveRight');
+    ['forward', 'backward', 'left', 'right'].forEach(dir => {
+      setupButton(`btn-${dir}`, dir);
+    });
+
+    // 右カーブ／左カーブ専用ボタン
+    const btnCurveRight = document.getElementById('btn-curve-right');
+    const btnCurveLeft  = document.getElementById('btn-curve-left');
+
+    function setupCurveButton(btn, turnKey) {
+      const start = (e) => {
+        moving.forward = true;
+        moving[turnKey] = true;
+        moveTrain();
+        e.preventDefault();
+      };
+      const end = (e) => {
+        moving.forward = false;
+        moving[turnKey] = false;
+        e && e.preventDefault();
+      };
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('touchstart', start, { passive: false });
+      btn.addEventListener('mouseup', end);
+      btn.addEventListener('mouseleave', end);
+      btn.addEventListener('touchend', end);
+      btn.addEventListener('touchcancel', end);
+    }
+    setupCurveButton(btnCurveRight, 'right');
+    setupCurveButton(btnCurveLeft, 'left');
 
     // 上下移動
-    document.getElementById('btn-up').onclick   = () => train.object3D.position.y += 0.1;
-    document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
+    document.getElementById('btn-up').onclick = () => {
+      train.object3D.position.y += 0.1;
+    };
+    document.getElementById('btn-down').onclick = () => {
+      train.object3D.position.y -= 0.1;
+    };
 
-    // ─────────────────────
-    // 顔写真の設定
-    // ─────────────────────
+    // 顔写真を a_Plate に貼る
     document.getElementById('btn-face').onclick = () => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      input.capture = 'user';               // iOSでカメラ or ライブラリ
+      input.capture = 'user'; // iOS でカメラ撮影のヒント
 
       input.onchange = (e) => {
         const file = e.target.files[0];
         if (!file) return;
         const url = URL.createObjectURL(file);
 
-        const loader = new THREE.TextureLoader();
-        loader.load(url, (tex) => {
-          tex.flipY = false;
-          tex.encoding = THREE.sRGBEncoding;
-          tex.needsUpdate = true;
+        const applyToPlate = () => {
+          const loader = new THREE.TextureLoader();
+          loader.load(url, (tex) => {
+            tex.flipY = false;
+            tex.encoding = THREE.sRGBEncoding;
+            tex.needsUpdate = true;
 
-          if (facePlate) {
-            // GLB内の a_Plate にそのまま貼るので、列車と完全同期
-            if (!Array.isArray(facePlate.material)) {
-              facePlate.material.map = tex;
-              facePlate.material.transparent = true;
-              facePlate.material.needsUpdate = true;
+            if (facePlate) {
+              if (!Array.isArray(facePlate.material)) {
+                facePlate.material.map = tex;
+                facePlate.material.transparent = true;
+                facePlate.material.needsUpdate = true;
+              }
+              facePlate.rotation.y = faceRotationY;
+              facePlate.rotation.x = faceRotationX;
+            } else {
+              // a_Plate がない場合は、運転席付近に Plane を追加
+              const geo = new THREE.PlaneGeometry(1.0, 1.0);
+              const mat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+                side: THREE.DoubleSide,
+                depthTest: false,
+                depthWrite: false
+              });
+              const mesh = new THREE.Mesh(geo, mat);
+              mesh.position.set(0.5, 2.8, -0.3); // 仮位置
+              mesh.rotation.y = faceRotationY;
+              mesh.rotation.x = faceRotationX;
+              mesh.renderOrder = 10;
+              train.object3D.add(mesh);
+              facePlate = mesh;
             }
-            facePlate.rotation.y = faceRotationY;
-            facePlate.rotation.x = faceRotationX;
-          } else {
-            // a_Plate が無い場合：列車の子としてPlane追加（運転席付近に仮配置）
-            const geo = new THREE.PlaneGeometry(0.6, 0.6);
-            const mat = new THREE.MeshBasicMaterial({
-              map: tex,
-              transparent: true,
-              side: THREE.DoubleSide,
-              depthTest: false,
-              depthWrite: false
-            });
-            const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(0, 1.4, 2.0);   // 車体先頭あたり（必要に応じて微調整）
-            mesh.rotation.y = faceRotationY;
-            mesh.rotation.x = faceRotationX;
-            mesh.renderOrder = 10;
-            train.object3D.add(mesh);
-            facePlate = mesh;
-          }
-        });
+          });
+        };
+
+        // モデル読み込み済みならすぐ適用
+        if (train.getObject3D('mesh')) {
+          applyToPlate();
+        } else {
+          train.addEventListener('model-loaded', applyToPlate, { once: true });
+        }
       };
+
       input.click();
     };
 
+    // 顔の回転・位置調整
     document.getElementById('btn-face-rotate-y').onclick = () => {
       if (facePlate) {
         faceRotationY += Math.PI / 2;
@@ -284,15 +333,20 @@
         facePlate.rotation.x = faceRotationX;
       }
     };
+    document.getElementById('btn-face-x-plus').onclick = () => {
+      if (facePlate) facePlate.position.x += 0.05;
+    };
+    document.getElementById('btn-face-x-minus').onclick = () => {
+      if (facePlate) facePlate.position.x -= 0.05;
+    };
+    document.getElementById('btn-face-y-plus').onclick = () => {
+      if (facePlate) facePlate.position.y += 0.05;
+    };
+    document.getElementById('btn-face-y-minus').onclick = () => {
+      if (facePlate) facePlate.position.y -= 0.05;
+    };
 
-    document.getElementById('btn-face-x-plus').onclick  = () => { if (facePlate) facePlate.position.x += 0.05; };
-    document.getElementById('btn-face-x-minus').onclick = () => { if (facePlate) facePlate.position.x -= 0.05; };
-    document.getElementById('btn-face-y-plus').onclick  = () => { if (facePlate) facePlate.position.y += 0.05; };
-    document.getElementById('btn-face-y-minus').onclick = () => { if (facePlate) facePlate.position.y -= 0.05; };
-
-    // ─────────────────────
-    // ズーム（列車スケール）
-    // ─────────────────────
+    // ズーム（列車のスケール）
     document.getElementById('btn-zoom-in').onclick = () => {
       zoomLevel += 0.1;
       train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
@@ -302,13 +356,11 @@
       train.object3D.scale.set(zoomLevel, zoomLevel, zoomLevel);
     };
 
-    // ─────────────────────
-    // 写真撮影・録画・共有
-    // ─────────────────────
+    // 写真撮影
     document.getElementById('btn-capture').onclick = () => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return;
-      canvas.toBlob(blob => {
+      canvas.toBlob((blob) => {
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'snapshot.png';
@@ -316,6 +368,7 @@
       });
     };
 
+    // 録画
     document.getElementById('btn-record').onclick = () => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return;
@@ -342,6 +395,7 @@
       }
     };
 
+    // 共有
     document.getElementById('btn-share').onclick = () => {
       if (navigator.share) {
         navigator.share({
@@ -350,7 +404,7 @@
           url: location.href
         }).catch(() => {});
       } else {
-        alert('このブラウザはWebシェアAPIに対応していません');
+        alert('このブラウザは Web シェア API に対応していません。');
       }
     };
   </script>
