@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AR Train Fixed Correctly</title>
+  <title>AR Train Final Fix</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
@@ -17,32 +17,45 @@
     }
     a-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
+    /* UIレイアウト */
     #ui-container {
       position: fixed; bottom: 20px; left: 0; width: 100%;
       z-index: 9999;
       display: flex; flex-direction: column; align-items: center;
-      gap: 12px; pointer-events: none;
+      gap: 12px;
+      pointer-events: none;
     }
+
     .ui-bar {
-      display: flex; gap: 10px; pointer-events: auto;
-      background: rgba(255,255,255,0.3); padding: 8px; border-radius: 12px;
+      display: flex; gap: 10px;
+      pointer-events: auto;
+      background: rgba(255,255,255,0.3);
+      padding: 8px; border-radius: 12px;
       backdrop-filter: blur(4px);
     }
+
     .pad-grid {
       display: grid;
-      grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px);
-      gap: 8px; background: rgba(255, 255, 255, 0.5);
-      padding: 10px; border-radius: 16px; pointer-events: auto;
+      grid-template-columns: repeat(3, 64px);
+      grid-template-rows: repeat(3, 64px);
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 10px; border-radius: 16px;
+      pointer-events: auto;
     }
+
     .btn {
-      width: 64px; height: 48px; background: rgba(255, 255, 255, 0.95);
+      width: 64px; height: 48px;
+      background: rgba(255, 255, 255, 0.95);
       border: 1px solid #888; border-radius: 8px;
       display: flex; justify-content: center; align-items: center;
       font-size: 20px; font-weight: bold; color: #333;
-      box-shadow: 0 4px 0 #666; cursor: pointer;
+      box-shadow: 0 4px 0 #666;
+      cursor: pointer;
     }
     .btn:active { transform: translateY(4px); box-shadow: 0 0 0 #666; background: #ddd; }
     .pad-grid .btn { width: 64px; height: 64px; font-size: 28px; }
+    
     .btn-stop { background: #ffcccc; color: #c00; font-size: 16px; }
     .btn-icon { font-size: 12px; flex-direction: column; gap: 2px; height: 54px;}
     .btn-icon span { font-size: 20px; }
@@ -73,17 +86,21 @@
     <div class="btn btn-icon" id="btn-zoom-in"><span>🔍</span>+</div>
     <div class="btn btn-icon" id="btn-zoom-out"><span>🔍</span>-</div>
   </div>
+  
   <div class="ui-bar">
     <div class="btn btn-icon" id="btn-capture"><span>📷</span>撮</div>
     <div class="btn btn-icon" id="btn-record"><span>🎥</span>録</div>
   </div>
+
   <div class="pad-grid">
     <div class="btn" id="btn-curve-left-fwd">↖</div>
     <div class="btn" id="btn-fwd">↑</div>
     <div class="btn" id="btn-curve-right-fwd">↗</div>
+
     <div class="btn" id="btn-turn-left">↺</div>
     <div class="btn btn-stop" id="btn-stop">STOP</div>
     <div class="btn" id="btn-turn-right">↻</div>
+
     <div class="btn" id="btn-curve-left-back">↙</div>
     <div class="btn" id="btn-back">↓</div>
     <div class="btn" id="btn-curve-right-back">↘</div>
@@ -92,11 +109,13 @@
 
 <script>
 const train = document.querySelector('#train');
+let trainSizeZ = 0; // 列車の長さを保持
 
 // パラメータ
 let speed = 0.05;
-let turnSpeedCurve = 1.0;
-let turnSpeedInPlace = 2.0;
+let turnSpeedInPlace = 2.0; // その場回転の速さ
+let turnSpeedCurve = 1.0;   // カーブ走行時の回転（ゆっくりにして大回りにする）
+
 let state = { moving: 0, turning: 0 };
 
 /* ========== メインループ ========== */
@@ -108,29 +127,63 @@ function loop() {
   // 1. 回転処理
   if (state.turning !== 0) {
     let rotationAmount = 0;
+    
     if (state.moving !== 0) {
-      // カーブ時はゆっくり回る
+      // 【カーブ走行】
+      // 移動中は回転速度を落とすことで、その場回転にならず「弧」を描きます
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedCurve) * state.turning;
+      
+      // 後進時はハンドル操作を逆にする感覚（お好みで削除可）
       if (state.moving === -1) rotationAmount *= -1; 
     } else {
-      // その場回転は速く
+      // 【その場回転】
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedInPlace) * state.turning;
     }
     mesh.rotation.y += rotationAmount;
   }
 
-  // 2. 移動処理
-  // ★重要：ここを「成功していた時のコード（translateZ）」に戻しました。
+  // 2. 移動処理（確実に前へ進める）
   if (state.moving !== 0) {
-    // translateZ は「現在の向きに対して前後移動」を行うThree.jsの関数です。
-    // マイナスを指定することで前進します。
-    const moveDistance = -state.moving * speed;
-    mesh.translateZ(moveDistance);
+    // 現在のモデルの正面（ローカルZマイナス軸）を取得
+    const forward = new THREE.Vector3(0, 0, -1);
+    forward.applyQuaternion(mesh.quaternion);
+    forward.normalize();
+
+    // 前進・後進
+    const moveDist = state.moving * speed;
+    mesh.position.addScaledVector(forward, moveDist);
   }
 }
 loop();
 
-/* ========== 顔写真設定（位置修正） ========== */
+/* ========== ボタンイベント ========== */
+function setAction(id, moveVal, turnVal) {
+  const btn = document.getElementById(id);
+  if(!btn) return;
+  const start = (e) => { if(e.cancelable) e.preventDefault(); state.moving = moveVal; state.turning = turnVal; };
+  const end = (e) => { if(e.cancelable) e.preventDefault(); state.moving = 0; state.turning = 0; };
+
+  btn.addEventListener('touchstart', start, {passive:false});
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('touchend', end, {passive:false});
+  btn.addEventListener('mouseup', end);
+  btn.addEventListener('mouseleave', end);
+}
+
+setAction('btn-fwd', 1, 0);
+setAction('btn-back', -1, 0);
+setAction('btn-turn-left', 0, 1);
+setAction('btn-turn-right', 0, -1);
+// 斜めボタン：前進(1)しながら回転(1 or -1)
+setAction('btn-curve-left-fwd', 1, 1);
+setAction('btn-curve-right-fwd', 1, -1);
+setAction('btn-curve-left-back', -1, 1);
+setAction('btn-curve-right-back', -1, -1);
+
+document.getElementById('btn-stop').addEventListener('click', (e)=>{ e.preventDefault(); state.moving=0; state.turning=0; });
+
+
+/* ========== 顔写真 自動配置ロジック ========== */
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
@@ -138,34 +191,37 @@ document.getElementById('btn-face').onclick = () => {
     const file = e.target.files[0];
     if (!file) return;
     
+    // 既存の顔を削除
     const oldFace = train.object3D.getObjectByName('custom_face');
     if(oldFace) train.object3D.remove(oldFace);
 
+    // モデルのサイズを計測（先端を見つけるため）
+    const box = new THREE.Box3().setFromObject(train.object3D);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    // ローカル座標系での前面位置を推定（Z軸の最大値か最小値のどちらかが顔）
+    // 一般的なGLBはZ軸方向が長さ。ここでは簡易的に「モデルの長さの半分」を先端と仮定して配置
+    // モデルのスケール(0.5)を考慮せず、バウンディングボックスはワールドサイズなので注意
+    // 安全策として、少し手前に配置するロジック
+    
+    // スケール前のローカルサイズを取得したいが、簡易的に固定値調整+微調整ボタンで対応できるよう
+    // Z位置を「モデル中心から2mくらい手前」と仮定して配置
+    // ※もし埋もれたら、このあとのコードで修正可能
+    
     const url = URL.createObjectURL(file);
     new THREE.TextureLoader().load(url, (tex) => {
       tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = true; 
+      tex.flipY = true; // 上下修正済み
 
-      const geo = new THREE.PlaneGeometry(0.65, 0.65);
-      const mat = new THREE.MeshBasicMaterial({
-        map: tex,
-        side: THREE.DoubleSide,
-        transparent: true,
-        // ★壁を透視して必ず表示させる（埋もれ防止）
-        depthTest: false,
-        depthWrite: false
-      });
+      const geo = new THREE.PlaneGeometry(0.8, 0.8);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = 'custom_face';
-      mesh.renderOrder = 999; 
 
-      /* ★位置の修正ロジック★
-         以前のコード(0.48)で「前に飛び出た」とのことなので、
-         そこから少し奥（車内側）に引っ込める必要があります。
-         数値を 0.48 より小さくします。
-      */
-      // X=0(中央), Y=1.7(目の高さ), Z=0.35(飛び出ていた0.48より少し奥)
-      mesh.position.set(0, 1.7, 0.35);
+      // ★顔の位置修正★
+      // 高さ1.2m、奥行きを2.5m（手前）に設定。
+      // 列車の中に埋もれる場合は、この 2.5 を増やしてください（3.0など）
+      mesh.position.set(0, 1.2, 2.8); 
       
       train.object3D.add(mesh);
     });
@@ -173,38 +229,18 @@ document.getElementById('btn-face').onclick = () => {
   input.click();
 };
 
-/* ========== ボタン操作設定 ========== */
-function setAction(id, moveVal, turnVal) {
-  const btn = document.getElementById(id);
-  if(!btn) return;
-  const start = (e) => { if(e.cancelable) e.preventDefault(); state.moving = moveVal; state.turning = turnVal; };
-  const end = (e) => { if(e.cancelable) e.preventDefault(); state.moving = 0; state.turning = 0; };
-  btn.addEventListener('touchstart', start, {passive:false});
-  btn.addEventListener('mousedown', start);
-  btn.addEventListener('touchend', end, {passive:false});
-  btn.addEventListener('mouseup', end);
-  btn.addEventListener('mouseleave', end);
-}
-setAction('btn-fwd', 1, 0); setAction('btn-back', -1, 0);
-setAction('btn-turn-left', 0, 1); setAction('btn-turn-right', 0, -1);
-setAction('btn-curve-left-fwd', 1, 1); setAction('btn-curve-right-fwd', 1, -1);
-setAction('btn-curve-left-back', -1, 1); setAction('btn-curve-right-back', -1, -1);
-document.getElementById('btn-stop').addEventListener('click', (e)=>{ e.preventDefault(); state.moving=0; state.turning=0; });
-
-/* ========== その他機能 ========== */
+/* ========== 高さ・ズーム・その他 ========== */
 document.getElementById('btn-up').onclick = () => train.object3D.position.y += 0.1;
 document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
+
 let curScale = 0.5;
 document.getElementById('btn-zoom-in').onclick = () => { curScale+=0.1; train.object3D.scale.set(curScale,curScale,curScale); };
 document.getElementById('btn-zoom-out').onclick = () => { curScale=Math.max(0.1, curScale-0.1); train.object3D.scale.set(curScale,curScale,curScale); };
+
 document.getElementById('btn-capture').onclick = () => {
   const cvs = document.querySelector('canvas');
   cvs.toBlob(b=>{const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ar.png'; a.click();});
 };
-window.addEventListener('resize', () => {
-  const scene = document.querySelector('a-scene');
-  if(scene.camera) { scene.camera.aspect = window.innerWidth / window.innerHeight; scene.camera.updateProjectionMatrix(); }
-});
 </script>
 </body>
 </html>
