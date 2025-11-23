@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AR Train Final Fix</title>
+  <title>AR Train Final Layout</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
@@ -17,48 +17,63 @@
     }
     a-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
-    /* UIレイアウト */
-    #ui-container {
-      position: fixed; bottom: 20px; left: 0; width: 100%;
+    /* --- UIレイアウト変更 --- */
+    
+    /* 画面上部の設定メニューエリア */
+    #ui-top {
+      position: fixed; top: 10px; left: 0; width: 100%;
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 8px;
+      pointer-events: none; /* 隙間はタッチ透過 */
       z-index: 9999;
-      display: flex; flex-direction: column; align-items: center;
-      gap: 12px;
+    }
+
+    /* 画面下部の操作エリア */
+    #ui-bottom {
+      position: fixed; bottom: 20px; left: 0; width: 100%;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
       pointer-events: none;
+      z-index: 9999;
     }
 
-    .ui-bar {
-      display: flex; gap: 10px;
-      pointer-events: auto;
-      background: rgba(255,255,255,0.3);
-      padding: 8px; border-radius: 12px;
-      backdrop-filter: blur(4px);
+    /* ボタンの基本スタイル（半透明にして邪魔にならないように） */
+    .btn {
+      background: rgba(255, 255, 255, 0.7); /* 背景を半透明に */
+      border: 1px solid rgba(0,0,0,0.3);
+      border-radius: 8px;
+      color: #333;
+      font-weight: bold;
+      cursor: pointer;
+      pointer-events: auto; /* ボタン自体はタッチ有効 */
+      backdrop-filter: blur(4px); /* すりガラス効果 */
+      display: flex; justify-content: center; align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
     }
+    .btn:active { background: rgba(255, 255, 255, 0.9); transform: translateY(2px); }
 
+    /* 上部用 小さめボタン */
+    .btn-sm {
+      height: 40px; min-width: 44px; padding: 0 8px;
+      font-size: 12px; flex-direction: column; gap: 0; line-height: 1.1;
+    }
+    .btn-sm span { font-size: 16px; }
+
+    /* 3x3 コントローラー */
     .pad-grid {
       display: grid;
-      grid-template-columns: repeat(3, 64px);
-      grid-template-rows: repeat(3, 64px);
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.5);
-      padding: 10px; border-radius: 16px;
+      grid-template-columns: repeat(3, 60px); /* 少し小さくして視界確保 */
+      grid-template-rows: repeat(3, 60px);
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.2); /* パッド背景は薄く */
+      padding: 8px; border-radius: 16px;
       pointer-events: auto;
     }
-
-    .btn {
-      width: 64px; height: 48px;
-      background: rgba(255, 255, 255, 0.95);
-      border: 1px solid #888; border-radius: 8px;
-      display: flex; justify-content: center; align-items: center;
-      font-size: 20px; font-weight: bold; color: #333;
-      box-shadow: 0 4px 0 #666;
-      cursor: pointer;
+    .pad-btn {
+      font-size: 24px; width: 100%; height: 100%;
     }
-    .btn:active { transform: translateY(4px); box-shadow: 0 0 0 #666; background: #ddd; }
-    .pad-grid .btn { width: 64px; height: 64px; font-size: 28px; }
-    
-    .btn-stop { background: #ffcccc; color: #c00; font-size: 16px; }
-    .btn-icon { font-size: 12px; flex-direction: column; gap: 2px; height: 54px;}
-    .btn-icon span { font-size: 20px; }
+
+    /* STOPボタン */
+    .btn-stop { background: rgba(255, 200, 200, 0.8); color: #c00; font-size: 14px; }
+
   </style>
 </head>
 <body>
@@ -71,51 +86,66 @@
 >
   <a-marker-camera preset="hiro">
     <a-entity id="train"
-              gltf-model="models/AR-Train_Nagai.glb"
-              position="0 0 0"
-              scale="0.5 0.5 0.5">
-    </a-entity>
+              gltf-model="models/AR-Train_Nagai.glb">
+              </a-entity>
   </a-marker-camera>
 </a-scene>
 
-<div id="ui-container">
-  <div class="ui-bar">
-    <div class="btn btn-icon" id="btn-face"><span>🙂</span>顔</div>
-    <div class="btn btn-icon" id="btn-up"><span>⬆</span>高</div>
-    <div class="btn btn-icon" id="btn-down"><span>⬇</span>低</div>
-    <div class="btn btn-icon" id="btn-zoom-in"><span>🔍</span>+</div>
-    <div class="btn btn-icon" id="btn-zoom-out"><span>🔍</span>-</div>
-  </div>
-  
-  <div class="ui-bar">
-    <div class="btn btn-icon" id="btn-capture"><span>📷</span>撮</div>
-    <div class="btn btn-icon" id="btn-record"><span>🎥</span>録</div>
-  </div>
+<div id="ui-top">
+  <div class="btn btn-sm" id="btn-face"><span>🙂</span>顔</div>
+  <div class="btn btn-sm" id="btn-up"><span>⬆</span>高</div>
+  <div class="btn btn-sm" id="btn-down"><span>⬇</span>低</div>
+  <div class="btn btn-sm" id="btn-zoom-in"><span>🔍</span>+</div>
+  <div class="btn btn-sm" id="btn-zoom-out"><span>🔍</span>-</div>
+  <div style="width:10px;"></div> <div class="btn btn-sm" id="btn-capture"><span>📷</span>撮</div>
+  <div class="btn btn-sm" id="btn-record"><span>🎥</span>録</div>
+</div>
 
+<div id="ui-bottom">
   <div class="pad-grid">
-    <div class="btn" id="btn-curve-left-fwd">↖</div>
-    <div class="btn" id="btn-fwd">↑</div>
-    <div class="btn" id="btn-curve-right-fwd">↗</div>
+    <div class="btn pad-btn" id="btn-curve-left-fwd">↖</div>
+    <div class="btn pad-btn" id="btn-fwd">↑</div>
+    <div class="btn pad-btn" id="btn-curve-right-fwd">↗</div>
 
-    <div class="btn" id="btn-turn-left">↺</div>
-    <div class="btn btn-stop" id="btn-stop">STOP</div>
-    <div class="btn" id="btn-turn-right">↻</div>
+    <div class="btn pad-btn" id="btn-turn-left">↺</div>
+    <div class="btn pad-btn btn-stop" id="btn-stop">STOP</div>
+    <div class="btn pad-btn" id="btn-turn-right">↻</div>
 
-    <div class="btn" id="btn-curve-left-back">↙</div>
-    <div class="btn" id="btn-back">↓</div>
-    <div class="btn" id="btn-curve-right-back">↘</div>
+    <div class="btn pad-btn" id="btn-curve-left-back">↙</div>
+    <div class="btn pad-btn" id="btn-back">↓</div>
+    <div class="btn pad-btn" id="btn-curve-right-back">↘</div>
   </div>
 </div>
 
 <script>
 const train = document.querySelector('#train');
 
-// パラメータ
+// 初期パラメータ
 let speed = 0.05;
-let turnSpeedInPlace = 2.0; // その場回転の速さ
-let turnSpeedCurve = 1.0;   // カーブ走行時の回転（ゆっくりにして大回りにする）
-
+let turnSpeedInPlace = 2.0;
+let turnSpeedCurve = 1.0;
 let state = { moving: 0, turning: 0 };
+
+/* ========== 初期位置設定（リクエスト対応） ========== */
+// モデル読み込み時、またはスクリプト実行時に初期位置をセット
+// AR.jsのマーカーモードでは、原点(0,0,0)がカメラ位置です。
+// そのため、Zをマイナスにすると「カメラの前方」になります。
+function initPosition() {
+  const mesh = train.object3D;
+  if (mesh) {
+    // X=0(中央), Y=-0.5(少し下げる=車体が中心に来る), Z=-2.0(2m奥)
+    mesh.position.set(0, -0.5, -2.0);
+    mesh.scale.set(0.5, 0.5, 0.5); // スケール初期値
+    
+    // 必要であれば回転もリセット(0,0,0)
+    mesh.rotation.set(0, 0, 0);
+  }
+}
+// ロード完了時にも適用
+train.addEventListener('model-loaded', initPosition);
+// 即時実行（既にロードされている場合のため）
+initPosition();
+
 
 /* ========== メインループ ========== */
 function loop() {
@@ -123,33 +153,29 @@ function loop() {
   if (!train.object3D) return;
   const mesh = train.object3D;
 
-  // 1. 回転処理
+  // 回転
   if (state.turning !== 0) {
     let rotationAmount = 0;
-    
     if (state.moving !== 0) {
-      // 【カーブ走行】
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedCurve) * state.turning;
       if (state.moving === -1) rotationAmount *= -1; 
     } else {
-      // 【その場回転】
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedInPlace) * state.turning;
     }
     mesh.rotation.y += rotationAmount;
   }
 
-  // 2. 移動処理
+  // 移動
   if (state.moving !== 0) {
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyQuaternion(mesh.quaternion);
     forward.normalize();
-    const moveDist = state.moving * speed;
-    mesh.position.addScaledVector(forward, moveDist);
+    mesh.position.addScaledVector(forward, state.moving * speed);
   }
 }
 loop();
 
-/* ========== ボタンイベント ========== */
+/* ========== ボタンイベント設定 ========== */
 function setAction(id, moveVal, turnVal) {
   const btn = document.getElementById(id);
   if(!btn) return;
@@ -167,7 +193,6 @@ setAction('btn-fwd', 1, 0);
 setAction('btn-back', -1, 0);
 setAction('btn-turn-left', 0, 1);
 setAction('btn-turn-right', 0, -1);
-// 斜めボタン
 setAction('btn-curve-left-fwd', 1, 1);
 setAction('btn-curve-right-fwd', 1, -1);
 setAction('btn-curve-left-back', -1, 1);
@@ -175,60 +200,67 @@ setAction('btn-curve-right-back', -1, -1);
 
 document.getElementById('btn-stop').addEventListener('click', (e)=>{ e.preventDefault(); state.moving=0; state.turning=0; });
 
-
-/* ========== 顔写真 配置ロジック（修正版） ========== */
+/* ========== 顔写真 設定 ========== */
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
   input.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
-    
     const oldFace = train.object3D.getObjectByName('custom_face');
     if(oldFace) train.object3D.remove(oldFace);
 
     const url = URL.createObjectURL(file);
     new THREE.TextureLoader().load(url, (tex) => {
-      tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = true; // 上下判定
-
-      // 顔画像のサイズ（0.7m四方）
+      tex.encoding = THREE.sRGBEncoding; tex.flipY = true;
       const geo = new THREE.PlaneGeometry(0.7, 0.7);
       const mat = new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide, transparent: true });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = 'custom_face';
-
-      /* ★重要★ ここが顔の位置を決める座標です (X, Y, Z)
-         X=横(0は中央), Y=高さ, Z=奥行き(マイナスが車内側) */
-      // 修正：運転席らしき位置へ移動（高さ1.75m, 奥行き-0.5m）
-      mesh.position.set(0.5, 3.0, -0.2); 
-      
+      // 前回設定した「運転席」の位置
+      mesh.position.set(0, 1.75, -0.5); 
       train.object3D.add(mesh);
     });
   };
   input.click();
 };
 
-/* ========== 高さ・ズーム・その他 ========== */
+/* ========== その他機能 ========== */
+// 高さ
 document.getElementById('btn-up').onclick = () => train.object3D.position.y += 0.1;
 document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
-
+// ズーム
 let curScale = 0.5;
 document.getElementById('btn-zoom-in').onclick = () => { curScale+=0.1; train.object3D.scale.set(curScale,curScale,curScale); };
 document.getElementById('btn-zoom-out').onclick = () => { curScale=Math.max(0.1, curScale-0.1); train.object3D.scale.set(curScale,curScale,curScale); };
 
+// キャプチャ
 document.getElementById('btn-capture').onclick = () => {
   const cvs = document.querySelector('canvas');
   cvs.toBlob(b=>{const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ar.png'; a.click();});
 };
-
-// 画面リサイズ時の歪み補正
-window.addEventListener('resize', () => {
-  const scene = document.querySelector('a-scene');
-  if(scene.camera) {
-    scene.camera.aspect = window.innerWidth / window.innerHeight;
-    scene.camera.updateProjectionMatrix();
+// 録画
+let recording = false, recorder, chunks=[];
+document.getElementById('btn-record').onclick = () => {
+  const cvs = document.querySelector('canvas');
+  if(!recording){
+    const st = cvs.captureStream();
+    recorder = new MediaRecorder(st);
+    recorder.ondataavailable = e => chunks.push(e.data);
+    recorder.onstop = () => {
+      const b = new Blob(chunks, {type:'video/webm'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(b); a.download='movie.webm'; a.click();
+      chunks=[];
+    };
+    recorder.start(); recording=true; alert('録画開始');
+  } else {
+    recorder.stop(); recording=false; alert('録画終了');
   }
+};
+
+window.addEventListener('resize', () => {
+  const s = document.querySelector('a-scene');
+  if(s.camera) { s.camera.aspect = window.innerWidth/window.innerHeight; s.camera.updateProjectionMatrix(); }
 });
 </script>
 </body>
