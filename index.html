@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>AR Train WebAR</title>
 
-  <!-- A-Frame & AR.js -->
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
@@ -15,7 +15,7 @@
       padding: 0;
       overflow: hidden;
       height: 100%;
-      background: #000;  /* 予備の背景（カメラが映らないとき用） */
+      background: transparent; /* 修正: 黒から透明に変更 */
     }
 
     /* A-Frame / AR.js キャンバスを端末いっぱいに広げる */
@@ -25,11 +25,12 @@
       left: 0;
       width: 100% !important;
       height: 100% !important;
+      z-index: 1;
     }
-    a-scene canvas {
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
+    
+    /* AR.jsが生成するvideoタグのスタイル補正（念の為） */
+    #arjs-video {
+      z-index: 0 !important;
     }
 
     /* UI ボタン */
@@ -43,8 +44,10 @@
       justify-content: center;
       gap: 5px;
       z-index: 9999;
+      pointer-events: none; /* ボタン以外をクリックしたときに誤動作を防ぐ */
     }
     .btn {
+      pointer-events: auto; /* ボタンはクリック可能にする */
       min-width: 64px;
       text-align: center;
       font-size: 14px;
@@ -54,6 +57,8 @@
       border-radius: 4px;
       cursor: pointer;
       user-select: none;
+      /* スマホでのタップ遅延対策 */
+      touch-action: manipulation;
     }
 
     /* 状態メッセージ表示 */
@@ -67,6 +72,7 @@
       color: #0f0;
       background: rgba(0,0,0,0.4);
       z-index: 9999;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -74,14 +80,12 @@
 
 <div id="status">カメラ起動中...</div>
 
-<!-- ★ カメラ背景つき AR.js シーン ★ -->
 <a-scene
   vr-mode-ui="enabled: false"
   embedded
   renderer="precision: mediump; antialias: true; alpha: true;"
   arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
 >
-  <!-- Hiro マーカーを使う -->
   <a-marker-camera preset="hiro">
     <a-entity id="train"
               gltf-model="models/AR-Train_Nagai.glb"
@@ -92,7 +96,6 @@
   </a-marker-camera>
 </a-scene>
 
-<!-- 操作用 UI -->
 <div id="ui">
   <div class="btn" id="btn-forward">↑</div>
   <div class="btn" id="btn-backward">↓</div>
@@ -121,9 +124,9 @@
 </div>
 
 <script>
-const statusEl   = document.getElementById('status');
-const train      = document.querySelector('#train');
-let   facePlate  = null;   // モデル内の a_Plate（または代替平面）
+const statusEl    = document.getElementById('status');
+const train       = document.querySelector('#train');
+let   facePlate   = null;   // モデル内の a_Plate（または代替平面）
 let   forwardAxis = 'z';
 const FORWARD_SIGN = 1;
 
@@ -145,22 +148,11 @@ let faceRotationX = 0;
 const MOVE_SPEED   = 0.15;
 const ROTATE_SPEED = 1.0;
 
-/* ========== カメラ取得チェック（メッセージ用。AR.js とは別） ========== */
-if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-  navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-      stream.getTracks().forEach(t => t.stop());
-      statusEl.textContent = 'カメラ取得OK。Hiroマーカーを映してください。';
-    })
-    .catch(err => {
-      console.warn(err);
-      statusEl.textContent = 'カメラ取得に失敗しました。設定を確認してください。';
-      statusEl.style.color = '#f66';
-    });
-} else {
-  statusEl.textContent = 'この端末はカメラAPIに対応していません。';
-  statusEl.style.color = '#f66';
-}
+/* 修正点: 
+  ここで navigator.mediaDevices.getUserMedia を呼び出すブロックを削除しました。
+  AR.jsが内部でカメラを呼び出す処理と競合しなくなるため、
+  スマホでも正常に背景が表示されるようになります。
+*/
 
 /* ========== モデル読み込み後の処理（向き判定・a_Plate取得） ========== */
 train.addEventListener('model-loaded', () => {
@@ -182,6 +174,7 @@ train.addEventListener('model-loaded', () => {
   obj.position.set(0, 0, -2);   // カメラ前方 2m
   obj.rotation.set(0, 0, 0);    // 正面をカメラに向ける（モデルの向きに応じて調整可）
 
+  // AR.jsの準備が整い、モデルが出た時点でメッセージ更新
   statusEl.textContent = 'Hiroマーカーをカメラに映してください。';
 });
 
@@ -224,13 +217,26 @@ function moveTrain() {
 function setupButton(id, key) {
   const btn = document.getElementById(id);
   if (!btn) return;
-  btn.ontouchstart = btn.onmousedown = e => {
+  // スマホでの操作性を考慮して touchstart を優先
+  btn.addEventListener('touchstart', (e) => {
     moving[key] = true;
     moveTrain();
-    e.preventDefault();
+    e.preventDefault(); // ダブルタップ拡大などを防ぐ
+  }, { passive: false });
+  
+  btn.addEventListener('mousedown', (e) => {
+    moving[key] = true;
+    moveTrain();
+  });
+
+  const stopMove = (e) => {
+    moving[key] = false;
+    // e.preventDefault(); // ここは状況によるが基本は不要
   };
-  btn.ontouchend = btn.onmouseup = () => { moving[key] = false; };
-  btn.onmouseleave = () => { moving[key] = false; };
+
+  btn.addEventListener('touchend', stopMove);
+  btn.addEventListener('mouseup', stopMove);
+  btn.addEventListener('mouseleave', stopMove);
 }
 
 setupButton('btn-forward',    'forward');
@@ -240,7 +246,7 @@ setupButton('btn-right',      'right');
 setupButton('btn-curve-right','curveRight');
 setupButton('btn-curve-left', 'curveLeft');
 
-document.getElementById('btn-up').onclick   = () => { train.object3D.position.y += 0.1; };
+document.getElementById('btn-up').onclick    = () => { train.object3D.position.y += 0.1; };
 document.getElementById('btn-down').onclick = () => { train.object3D.position.y -= 0.1; };
 
 /* ========== 顔写真貼り付け ========== */
@@ -265,6 +271,7 @@ document.getElementById('btn-face').onclick = () => {
           facePlate.rotation.y = faceRotationY;
           facePlate.rotation.x = faceRotationX;
         } else {
+          // モデル内に a_Plate がない場合の代替平面
           const geo = new THREE.PlaneGeometry(1.0, 1.0);
           const mat = new THREE.MeshBasicMaterial({
             map: tex,
@@ -274,6 +281,7 @@ document.getElementById('btn-face').onclick = () => {
             depthWrite: false
           });
           const mesh = new THREE.Mesh(geo, mat);
+          // 位置はモデルに合わせて調整が必要かもしれません
           mesh.position.set(0.5, 2.8, -0.3);
           mesh.rotation.y = faceRotationY;
           mesh.rotation.x = faceRotationX;
