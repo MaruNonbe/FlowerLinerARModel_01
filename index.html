@@ -3,80 +3,151 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AR Train Final Compatible</title>
+  <title>AR Train Final Design</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
   <style>
-    /* 基本設定 */
+    /* ===== 基本設定 ===== */
     html, body {
-      margin: 0; padding: 0; width: 100%; height: 100%;
-      overflow: hidden; background: transparent; font-family: sans-serif;
-      /* iPhone (Safari) での長押し選択・ハイライトを無効化 */
-      user-select: none; -webkit-user-select: none;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: sans-serif;
+      user-select: none;
       -webkit-touch-callout: none;
     }
-    a-scene { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
-    /* UIコンテナ */
+    a-scene {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    /* ===== UIコンテナ（下部に固定・安全領域を考慮） ===== */
     #ui-container {
-      position: fixed; bottom: 20px; left: 0; width: 100%;
+      position: fixed;
+      left: 0;
+      width: 100%;
+      bottom: calc(10px + env(safe-area-inset-bottom, 0px));
       z-index: 9999;
-      display: flex; flex-direction: column; align-items: center;
-      gap: 15px;
-      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;  /* 子要素だけタップ可能にする */
+      padding: 0 8px;
+      box-sizing: border-box;
     }
 
-    /* 上段・中段のボタンバー */
+    /* ===== 上段・中段のボタンバー（横並び） ===== */
     .top-bar {
-      display: flex; gap: 8px; pointer-events: auto;
-      background: rgba(255, 255, 255, 0.4);
-      padding: 8px; border-radius: 12px;
-      /* ★修正：iPhone用のすりガラス効果を追加 */
-      -webkit-backdrop-filter: blur(4px);
-      backdrop-filter: blur(4px);
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 8px 10px;
+      border-radius: 12px;
+      backdrop-filter: blur(6px);
+      max-width: 520px;
+      width: 100%;
+      justify-content: center;
+      box-sizing: border-box;
     }
 
-    /* 3x3 コントローラー */
+    /* ===== 3x3 コントローラー（最下段） ===== */
     .pad-grid {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      background: rgba(255, 255, 255, 0.4);
-      padding: 12px; border-radius: 16px;
+      background: rgba(255, 255, 255, 0.5);
+      padding: 12px;
+      border-radius: 18px;
       pointer-events: auto;
-      /* ★修正：iPhone用のすりガラス効果を追加 */
-      -webkit-backdrop-filter: blur(4px);
-      backdrop-filter: blur(4px);
+      backdrop-filter: blur(6px);
+      max-width: 300px;
+      width: 100%;
+      box-sizing: border-box;
     }
 
-    /* ボタン共通スタイル */
+    /* ===== ボタン共通スタイル ===== */
     .btn {
-      width: 55px; height: 55px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 1px solid #999; border-radius: 10px;
-      display: flex; justify-content: center; align-items: center;
-      cursor: pointer; box-shadow: 0 4px 0 rgba(0,0,0,0.2);
-      color: #333; transition: transform 0.1s;
-      /* タップ時のハイライト色を透明に */
-      -webkit-tap-highlight-color: transparent;
+      width: 56px;
+      height: 56px;
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #999;
+      border-radius: 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      box-shadow: 0 4px 0 rgba(0, 0, 0, 0.25);
+      color: #333;
+      transition: transform 0.05s ease-out, box-shadow 0.05s ease-out, background 0.05s ease-out;
+      box-sizing: border-box;
+      touch-action: manipulation;
     }
+
     .btn:active {
-      transform: translateY(4px);
+      transform: translateY(3px);
       box-shadow: none;
-      background: #eee;
+      background: #e9e9e9;
     }
 
-    .btn-icon {
-      flex-direction: column; gap: 0; font-size: 10px; font-weight: bold;
+    /* 小さめボタン（機能ボタン用） */
+    .btn-small {
+      width: 54px;
+      height: 54px;
+      font-size: 10px;
+      font-weight: bold;
+      flex-direction: column;
+      gap: 0;
     }
-    .btn-icon span { font-size: 20px; margin-bottom: 2px; }
 
-    .pad-grid .btn { font-size: 24px; color: #556677; font-weight: bold; }
+    .btn-small span {
+      font-size: 18px;
+      margin-bottom: 2px;
+    }
 
-    .btn-stop { background: #ffcccc; color: #d00; font-size: 14px; font-weight: bold; }
+    /* パッド内の矢印ボタン */
+    .pad-grid .btn {
+      font-size: 24px;
+      color: #556677;
+      font-weight: bold;
+    }
+
+    /* STOPボタン */
+    .btn-stop {
+      background: #ffcccc;
+      color: #d00;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    /* 画面が小さい端末向けの調整 */
+    @media (max-width: 430px) {
+      .btn {
+        width: 52px;
+        height: 52px;
+      }
+      .btn-small {
+        width: 50px;
+        height: 50px;
+      }
+      .pad-grid {
+        max-width: 270px;
+        gap: 8px;
+        padding: 10px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -100,20 +171,23 @@
 </a-scene>
 
 <div id="ui-container">
-  
+
+  <!-- 上段：顔・高さ・拡大縮小 -->
   <div class="top-bar">
-    <div class="btn btn-icon" id="btn-face"><span>🙂</span>顔</div>
-    <div class="btn btn-icon" id="btn-up"><span>⬆</span>高</div>
-    <div class="btn btn-icon" id="btn-down"><span>⬇</span>低</div>
-    <div class="btn btn-icon" id="btn-zoom-in"><span>🔍</span>+</div>
-    <div class="btn btn-icon" id="btn-zoom-out"><span>🔍</span>-</div>
-  </div>
-  
-  <div class="top-bar">
-    <div class="btn btn-icon" id="btn-capture"><span>📷</span>撮</div>
-    <div class="btn btn-icon" id="btn-record"><span>🎥</span>録</div>
+    <div class="btn btn-small" id="btn-face"><span>🙂</span>顔</div>
+    <div class="btn btn-small" id="btn-up"><span>⬆</span>高</div>
+    <div class="btn btn-small" id="btn-down"><span>⬇</span>低</div>
+    <div class="btn btn-small" id="btn-zoom-in"><span>🔍</span>＋</div>
+    <div class="btn btn-small" id="btn-zoom-out"><span>🔍</span>－</div>
   </div>
 
+  <!-- 中段：撮影・録画 -->
+  <div class="top-bar">
+    <div class="btn btn-small" id="btn-capture"><span>📷</span>撮</div>
+    <div class="btn btn-small" id="btn-record"><span>🎥</span>録</div>
+  </div>
+
+  <!-- 下段：移動コントローラ -->
   <div class="pad-grid">
     <div class="btn" id="btn-curve-left-fwd">↖</div>
     <div class="btn" id="btn-fwd">↑</div>
@@ -135,28 +209,32 @@ const train = document.querySelector('#train');
 
 // 移動パラメータ
 let speed = 0.05;
-let turnSpeedInPlace = 2.0; 
-let turnSpeedCurve = 1.0;   
+let turnSpeedInPlace = 2.0; // その場回転
+let turnSpeedCurve   = 1.0; // カーブ回転（大回り）
 let state = { moving: 0, turning: 0 };
 
-/* ========== ループ処理 ========== */
+/* ========== ループ処理（アニメーション） ========== */
 function loop() {
   requestAnimationFrame(loop);
-  
+
   if (!train.object3D) return;
   const mesh = train.object3D;
 
+  // 回転
   if (state.turning !== 0) {
     let rotationAmount = 0;
     if (state.moving !== 0) {
+      // カーブ走行
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedCurve) * state.turning;
-      if (state.moving === -1) rotationAmount *= -1; 
+      if (state.moving === -1) rotationAmount *= -1; // 後進時は逆ハンドル
     } else {
+      // その場回転
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedInPlace) * state.turning;
     }
     mesh.rotation.y += rotationAmount;
   }
 
+  // 移動（Zマイナス方向＝モデルの正面へ進む）
   if (state.moving !== 0) {
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyQuaternion(mesh.quaternion);
@@ -166,35 +244,39 @@ function loop() {
 }
 loop();
 
-/* ========== 顔写真設定（絶対見える版） ========== */
+/* ========== 顔写真設定（絶対に見える版） ========== */
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*';
+  input.type = 'file';
+  input.accept = 'image/*';
   input.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
 
+    // 既存の顔写真を削除
     const oldFace = train.object3D.getObjectByName('custom_face');
-    if(oldFace) train.object3D.remove(oldFace);
+    if (oldFace) train.object3D.remove(oldFace);
 
     const url = URL.createObjectURL(file);
     new THREE.TextureLoader().load(url, (tex) => {
       tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = true; 
+      tex.flipY = true; // 上下修正
 
       const geo = new THREE.PlaneGeometry(0.7, 0.7);
-      const mat = new THREE.MeshBasicMaterial({ 
-        map: tex, 
-        side: THREE.DoubleSide, 
-        transparent:true,
-        depthTest: false, // 最前面表示
+      const mat = new THREE.MeshBasicMaterial({
+        map: tex,
+        side: THREE.DoubleSide,
+        transparent: true,
+        depthTest: false,
         depthWrite: false
       });
       const mesh = new THREE.Mesh(geo, mat);
       mesh.name = 'custom_face';
-      mesh.renderOrder = 999; 
+      mesh.renderOrder = 999; // 常に最前面
 
-      mesh.position.set(0, 1.7, 2.5); 
+      // 位置設定（運転席付近：必要に応じて微調整）
+      mesh.position.set(0, 1.7, 2.5);
+
       train.object3D.add(mesh);
     });
   };
@@ -204,66 +286,76 @@ document.getElementById('btn-face').onclick = () => {
 /* ========== ボタン操作 ========== */
 function setAction(id, moveVal, turnVal) {
   const btn = document.getElementById(id);
-  if(!btn) return;
+  if (!btn) return;
 
-  const start = (e) => { 
-    if(e.cancelable) e.preventDefault(); 
-    state.moving = moveVal; 
-    state.turning = turnVal; 
-  };
-  const end = (e) => { 
-    if(e.cancelable) e.preventDefault(); 
-    state.moving = 0; 
-    state.turning = 0; 
+  const start = (e) => {
+    if (e.cancelable) e.preventDefault();
+    state.moving  = moveVal;
+    state.turning = turnVal;
   };
 
-  btn.addEventListener('touchstart', start, {passive:false});
+  const end = (e) => {
+    if (e.cancelable) e.preventDefault();
+    state.moving  = 0;
+    state.turning = 0;
+  };
+
+  btn.addEventListener('touchstart', start, { passive: false });
+  btn.addEventListener('touchend', end,   { passive: false });
   btn.addEventListener('mousedown', start);
-  btn.addEventListener('touchend', end, {passive:false});
   btn.addEventListener('mouseup', end);
   btn.addEventListener('mouseleave', end);
 }
 
-setAction('btn-fwd', 1, 0); 
+setAction('btn-fwd', 1, 0);
 setAction('btn-back', -1, 0);
-setAction('btn-turn-left', 0, 1); 
+setAction('btn-turn-left', 0, 1);
 setAction('btn-turn-right', 0, -1);
-setAction('btn-curve-left-fwd', 1, 1); 
+setAction('btn-curve-left-fwd', 1, 1);
 setAction('btn-curve-right-fwd', 1, -1);
-setAction('btn-curve-left-back', -1, 1); 
+setAction('btn-curve-left-back', -1, 1);
 setAction('btn-curve-right-back', -1, -1);
 
-document.getElementById('btn-stop').addEventListener('click', (e)=>{ 
-  e.preventDefault(); state.moving=0; state.turning=0; 
+document.getElementById('btn-stop').addEventListener('click', (e) => {
+  e.preventDefault();
+  state.moving  = 0;
+  state.turning = 0;
 });
 
 /* ========== その他機能 ========== */
-document.getElementById('btn-up').onclick = () => train.object3D.position.y += 0.1;
-document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
+document.getElementById('btn-up').onclick   = () => { train.object3D.position.y += 0.1; };
+document.getElementById('btn-down').onclick = () => { train.object3D.position.y -= 0.1; };
 
 let curScale = 0.5;
-document.getElementById('btn-zoom-in').onclick = () => { 
-  curScale += 0.1; train.object3D.scale.set(curScale,curScale,curScale); 
+document.getElementById('btn-zoom-in').onclick = () => {
+  curScale += 0.1;
+  train.object3D.scale.set(curScale, curScale, curScale);
 };
-document.getElementById('btn-zoom-out').onclick = () => { 
-  curScale = Math.max(0.1, curScale - 0.1); train.object3D.scale.set(curScale,curScale,curScale); 
+document.getElementById('btn-zoom-out').onclick = () => {
+  curScale = Math.max(0.1, curScale - 0.1);
+  train.object3D.scale.set(curScale, curScale, curScale);
 };
 
+// 撮影
 document.getElementById('btn-capture').onclick = () => {
   const cvs = document.querySelector('canvas');
-  cvs.toBlob(b=>{
-    const a=document.createElement('a'); 
-    a.href=URL.createObjectURL(b); 
-    a.download='ar.png'; 
+  if (!cvs) return;
+  cvs.toBlob(b => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(b);
+    a.download = 'ar.png';
     a.click();
   });
 };
 
+// 録画（必要なら元の実装をここに追加）
+
+// リサイズ補正
 window.addEventListener('resize', () => {
   const scene = document.querySelector('a-scene');
-  if(scene.camera) { 
-    scene.camera.aspect = window.innerWidth / window.innerHeight; 
-    scene.camera.updateProjectionMatrix(); 
+  if (scene && scene.camera) {
+    scene.camera.aspect = window.innerWidth / window.innerHeight;
+    scene.camera.updateProjectionMatrix();
   }
 });
 </script>
