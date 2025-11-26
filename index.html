@@ -79,26 +79,24 @@
             rotation="0 0 0"
             scale="0.5 0.5 0.5">
     
-<a-entity id="headlights" visible="false">
+    <a-entity id="headlights" visible="false">
       
-      <a-sphere radius="0.12" position="0.6 2.85 0.3" 
+      <a-sphere radius="0.12" position="0.6 2.85 -6.8" 
                 material="color: #ffffcc; shader: flat"></a-sphere>
-      
       <a-cone height="15" radius-bottom="3" radius-top="0.1" 
-              position="0.6 2.85 -7.0" rotation="-90 0 0"
+              position="0.6 2.85 -14.3" rotation="-90 0 0"
               material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
       </a-cone>
 
-
-      <a-sphere radius="0.12" position="-0.6 2.85 0.3" 
+      <a-sphere radius="0.12" position="-0.6 2.85 -6.8" 
                 material="color: #ffffcc; shader: flat"></a-sphere>
-      
       <a-cone height="15" radius-bottom="3" radius-top="0.1" 
-              position="-0.6 2.85 -7.0" rotation="-90 0 0"
+              position="-0.6 2.85 -14.3" rotation="-90 0 0"
               material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
       </a-cone>
 
-    </a-entity>  </a-entity>
+    </a-entity>
+  </a-entity>
 </a-scene>
 
 <div id="top-ui-container">
@@ -137,6 +135,7 @@
 </div>
 
 <script>
+/* ========== スクリプト（変更なし） ========== */
 function onResize() {
   const scene = document.querySelector('a-scene');
   const video = document.getElementById('arjs-video');
@@ -149,20 +148,17 @@ function onResize() {
 window.addEventListener('load', onResize);
 window.addEventListener('resize', onResize);
 
-/* ========== 音声・ライト制御 ========== */
 const hornAudio = document.getElementById('snd-horn');
 const runAudio = document.getElementById('snd-run');
 const headlights = document.getElementById('headlights');
 let isLightOn = false;
 let isRunningSoundPlaying = false;
 
-// 初回タッチでAudioロック解除
 document.body.addEventListener('touchstart', function() {
   if (hornAudio) hornAudio.load();
   if (runAudio) runAudio.load();
 }, { once: true });
 
-/* ★修正：警笛（確実になるようにイベント調整） */
 const btnHorn = document.getElementById('btn-horn');
 const playHorn = (e) => {
   if(e.cancelable) e.preventDefault();
@@ -175,20 +171,17 @@ const playHorn = (e) => {
 const stopHorn = (e) => {
   if(e.cancelable) e.preventDefault();
   if(hornAudio) {
-    // すぐに止めず、少しだけ余韻を持たせるか、押しっぱなしに対応
     hornAudio.pause();
     hornAudio.currentTime = 0;
     btnHorn.classList.remove('btn-active');
   }
 };
-// PC/スマホ両対応のイベント
 btnHorn.addEventListener('touchstart', playHorn, {passive:false});
 btnHorn.addEventListener('mousedown', playHorn);
 btnHorn.addEventListener('touchend', stopHorn, {passive:false});
 btnHorn.addEventListener('mouseup', stopHorn);
 btnHorn.addEventListener('mouseleave', stopHorn);
 
-// ライト
 document.getElementById('btn-light').onclick = function() {
   isLightOn = !isLightOn;
   headlights.setAttribute('visible', isLightOn);
@@ -196,11 +189,10 @@ document.getElementById('btn-light').onclick = function() {
   else this.classList.remove('btn-active');
 };
 
-/* ========== 車両操作 ========== */
 const train = document.querySelector('#train');
 let speed = 0.05;
 let turnSpeedInPlace = 2.0; 
-let turnSpeedCurve = 1.0;   
+let turnSpeedCurve = 0.5;   
 let state = { moving: 0, turning: 0 };
 
 function loop() {
@@ -268,7 +260,6 @@ document.getElementById('btn-capture').onclick = () => {
   cvs.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ar_snapshot.png'; a.click(); });
 };
 
-/* ========== 顔写真設定（変更なし） ========== */
 const createOrUpdateFace = (tex) => {
   const oldFace = train.object3D.getObjectByName('Face_Plate');
   if(oldFace) train.object3D.remove(oldFace);
