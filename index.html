@@ -2,102 +2,76 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AR Train Control Final</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>AR Train Face Adjust</title>
 
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
   <style>
-    /* ========== 元のUIデザインを維持 ========== */
+    /* ========== UIデザイン ========== */
     html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      background: transparent;
+      margin: 0; padding: 0; 
+      width: 100%; height: 100%;
+      overflow: hidden; background: #000; 
       font-family: sans-serif;
-      /* iPhone対策：長押し選択防止 */
-      user-select: none;
-      -webkit-user-select: none;
-      -webkit-touch-callout: none;
+      user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
     }
 
     a-scene {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 1;
+      position: fixed !important; top: 0; left: 0;
+      width: 100vw !important; height: 100vh !important;
+      z-index: 1; display: block !important;
     }
 
-    /* UIレイアウト */
-    #ui-container {
-      position: fixed;
-      bottom: 20px;
-      left: 0;
-      width: 100%;
+    .a-canvas, #arjs-video {
+      width: 100% !important; height: 100% !important;
+      object-fit: cover !important;
+    }
+
+    /* 上部UI（2行にするためgap調整） */
+    #top-ui-container {
+      position: fixed; top: 20px; left: 0; width: 100%;
       z-index: 9999;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 15px;
-      pointer-events: none;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 8px; pointer-events: none;
+    }
+    #bottom-ui-container {
+      position: fixed; bottom: 30px; left: 0; width: 100%;
+      z-index: 9999;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; pointer-events: none;
     }
 
-    /* 上部ツールバー */
-    .top-bar {
-      display: flex;
-      gap: 8px;
+    /* ボタンスタイル */
+    .ui-bar, .pad-grid {
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
       pointer-events: auto;
     }
-
-    /* 3x3 コントローラー */
+    .ui-bar { display: flex; gap: 6px; padding: 5px 8px; border-radius: 15px; }
+    
     .pad-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      background: rgba(255, 255, 255, 0.3);
-      padding: 10px;
-      border-radius: 15px;
-      pointer-events: auto;
+      display: grid; gap: 8px; padding: 15px; border-radius: 20px;
+      grid-template-columns: repeat(3, 60px); grid-template-rows: repeat(3, 60px);
     }
 
-    /* ボタン（元のデザイン：60px, 枠線2px） */
     .btn {
-      width: 60px;
-      height: 60px;
-      background: rgba(255, 255, 255, 0.9);
-      border: 2px solid #555;
-      border-radius: 12px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 24px;
-      font-weight: bold;
-      cursor: pointer;
-      user-select: none;
-      box-shadow: 0 4px 0 #888;
-      transition: transform 0.1s, box-shadow 0.1s;
+      width: 55px; height: 55px; /* 少し小さくして並びやすく */
+      background: #ffffff; border: none; border-radius: 12px;
+      display: flex; justify-content: center; align-items: center;
+      font-size: 22px; color: #556677;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15); cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
     }
+    .btn:active { transform: scale(0.96); background: #f5f5f5; }
 
-    .btn:active {
-      transform: translateY(4px);
-      box-shadow: 0 0 0 #888;
-      background: #eee;
-    }
-
-    /* STOPボタン */
-    .btn-stop {
-      background: #ffcccc;
-      color: #c00;
-      font-size: 16px;
-    }
-
-    .icon-sm { font-size: 14px; }
+    .btn-icon { flex-direction: column; gap: 0px; font-size: 10px; color: #333; }
+    .btn-icon span { font-size: 20px; line-height: 1.2; }
+    .btn-icon div { font-weight: bold; font-size: 9px; }
+    
+    .btn-stop { background: #ffcccc; color: #d00; font-size: 15px; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -105,45 +79,50 @@
 <a-scene
   vr-mode-ui="enabled: false"
   embedded
+  arjs="sourceType: webcam; videoTexture: true; debugUIEnabled: false; displayWidth: auto; displayHeight: auto;"
   renderer="precision: mediump; antialias: true; alpha: true;"
-  arjs="trackingMethod: best; sourceType: webcam; debugUIEnabled: false;"
 >
   <a-light type="ambient" color="#FFF" intensity="0.8"></a-light>
-  <a-light type="directional" position="-1 2 1" intensity="0.5"></a-light>
+  <a-light type="directional" position="-1 2 1" intensity="0.6"></a-light>
 
-  <a-marker-camera preset="hiro">
-    <a-entity id="train"
-              gltf-model="models/AR-Train_Nagai.glb"
-              position="0 0 0"
-              scale="0.5 0.5 0.5">
-    </a-entity>
-  </a-marker-camera>
+  <a-camera position="0 1.6 5" look-controls="enabled: true"></a-camera>
+
+  <a-entity id="train"
+            gltf-model="models/AR-Train_Nagai.glb"
+            position="0 0 0"
+            rotation="0 0 0"
+            scale="0.5 0.5 0.5">
+  </a-entity>
 </a-scene>
 
-<div id="ui-container">
-  
-  <div class="top-bar">
-    <div class="btn icon-sm" id="btn-face">🙂顔</div>
-    <div class="btn icon-sm" id="btn-up">⬆高</div>
-    <div class="btn icon-sm" id="btn-down">⬇低</div>
-    <div class="btn icon-sm" id="btn-zoom-in">🔍+</div>
-    <div class="btn icon-sm" id="btn-zoom-out">🔍-</div>
-  </div>
-  
-  <div class="top-bar">
-    <div class="btn icon-sm" id="btn-capture">📷</div>
-    <div class="btn icon-sm" id="btn-record">🎥</div>
+<div id="top-ui-container">
+  <div class="ui-bar">
+    <div class="btn btn-icon" id="btn-face"><span>🙂</span><div>UP</div></div>
+    <div class="btn btn-icon" id="btn-capture"><span>📷</span><div>撮</div></div>
+    <div class="btn btn-icon" id="btn-up"><span>⬆</span><div>高</div></div>
+    <div class="btn btn-icon" id="btn-down"><span>⬇</span><div>低</div></div>
+    <div class="btn btn-icon" id="btn-zoom-in"><span>🔍</span><div>+</div></div>
+    <div class="btn btn-icon" id="btn-zoom-out"><span>🔍</span><div>-</div></div>
   </div>
 
+  <div class="ui-bar">
+    <div class="btn btn-icon" id="btn-face-left"><span>←</span><div>顔</div></div>
+    <div class="btn btn-icon" id="btn-face-right"><span>→</span><div>顔</div></div>
+    <div class="btn btn-icon" id="btn-face-up"><span>↑</span><div>顔</div></div>
+    <div class="btn btn-icon" id="btn-face-down"><span>↓</span><div>顔</div></div>
+    <div class="btn btn-icon" id="btn-face-big"><span>＋</span><div>大</div></div>
+    <div class="btn btn-icon" id="btn-face-small"><span>－</span><div>小</div></div>
+  </div>
+</div>
+
+<div id="bottom-ui-container">
   <div class="pad-grid">
     <div class="btn" id="btn-curve-left-fwd">↖</div>
     <div class="btn" id="btn-fwd">↑</div>
     <div class="btn" id="btn-curve-right-fwd">↗</div>
-
     <div class="btn" id="btn-turn-left">↺</div>
     <div class="btn btn-stop" id="btn-stop">STOP</div>
     <div class="btn" id="btn-turn-right">↻</div>
-
     <div class="btn" id="btn-curve-left-back">↙</div>
     <div class="btn" id="btn-back">↓</div>
     <div class="btn" id="btn-curve-right-back">↘</div>
@@ -151,37 +130,46 @@
 </div>
 
 <script>
-/* ========== ロジック修正版 ========== */
-const train = document.querySelector('#train');
+/* ========== 全画面リサイズ ========== */
+function onResize() {
+  const scene = document.querySelector('a-scene');
+  const video = document.getElementById('arjs-video');
+  if (scene && scene.renderer) {
+    const w = window.innerWidth; const h = window.innerHeight;
+    scene.renderer.setSize(w, h);
+    scene.camera.aspect = w / h;
+    scene.camera.updateProjectionMatrix();
+  }
+  if (video) {
+    video.style.width = '100%'; video.style.height = '100%'; video.style.objectFit = 'cover';
+  }
+}
+window.addEventListener('load', onResize);
+window.addEventListener('resize', onResize);
 
-// 移動パラメータ
+/* ========== 車両操作 ========== */
+const train = document.querySelector('#train');
 let speed = 0.05;
 let turnSpeedInPlace = 2.0; 
-let turnSpeedCurve = 1.0;   
+let turnSpeedCurve = 0.5;   
 let state = { moving: 0, turning: 0 };
 
-/* ループ処理 */
 function loop() {
   requestAnimationFrame(loop);
-  
   if (!train.object3D) return;
   const mesh = train.object3D;
 
-  // 1. 回転
   if (state.turning !== 0) {
     let rotationAmount = 0;
     if (state.moving !== 0) {
-      // カーブ走行
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedCurve) * state.turning;
       if (state.moving === -1) rotationAmount *= -1; 
     } else {
-      // その場回転
       rotationAmount = THREE.MathUtils.degToRad(turnSpeedInPlace) * state.turning;
     }
     mesh.rotation.y += rotationAmount;
   }
 
-  // 2. 移動
   if (state.moving !== 0) {
     const forward = new THREE.Vector3(0, 0, -1);
     forward.applyQuaternion(mesh.quaternion);
@@ -191,108 +179,115 @@ function loop() {
 }
 loop();
 
-/* ボタン操作 */
 function setAction(id, moveVal, turnVal) {
   const btn = document.getElementById(id);
   if(!btn) return;
-
-  const start = (e) => { 
-    if(e.cancelable) e.preventDefault(); 
-    state.moving = moveVal; 
-    state.turning = turnVal; 
-  };
-  const end = (e) => { 
-    if(e.cancelable) e.preventDefault(); 
-    state.moving = 0; 
-    state.turning = 0; 
-  };
-
+  const start = (e) => { if(e.cancelable) e.preventDefault(); state.moving = moveVal; state.turning = turnVal; };
+  const end = (e) => { if(e.cancelable) e.preventDefault(); state.moving = 0; state.turning = 0; };
   btn.addEventListener('touchstart', start, {passive:false});
   btn.addEventListener('mousedown', start);
   btn.addEventListener('touchend', end, {passive:false});
   btn.addEventListener('mouseup', end);
   btn.addEventListener('mouseleave', end);
 }
+setAction('btn-fwd', 1, 0); setAction('btn-back', -1, 0);
+setAction('btn-turn-left', 0, 1); setAction('btn-turn-right', 0, -1);
+setAction('btn-curve-left-fwd', 1, 1); setAction('btn-curve-right-fwd', 1, -1);
+setAction('btn-curve-left-back', -1, 1); setAction('btn-curve-right-back', -1, -1);
+document.getElementById('btn-stop').addEventListener('click', (e)=>{ e.preventDefault(); state.moving=0; state.turning=0; });
 
-// 割り当て
-setAction('btn-fwd', 1, 0); 
-setAction('btn-back', -1, 0);
-setAction('btn-turn-left', 0, 1); 
-setAction('btn-turn-right', 0, -1);
-setAction('btn-curve-left-fwd', 1, 1); 
-setAction('btn-curve-right-fwd', 1, -1);
-setAction('btn-curve-left-back', -1, 1); 
-setAction('btn-curve-right-back', -1, -1);
+document.getElementById('btn-up').onclick = () => train.object3D.position.y += 0.1;
+document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
+let curScale = 0.5;
+document.getElementById('btn-zoom-in').onclick = () => { curScale += 0.05; train.object3D.scale.set(curScale,curScale,curScale); };
+document.getElementById('btn-zoom-out').onclick = () => { curScale = Math.max(0.1, curScale - 0.05); train.object3D.scale.set(curScale,curScale,curScale); };
+document.getElementById('btn-capture').onclick = () => {
+  const cvs = document.querySelector('canvas');
+  cvs.toBlob(b=>{ const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='ar_snapshot.png'; a.click(); });
+};
 
-document.getElementById('btn-stop').addEventListener('click', (e)=>{ 
-  e.preventDefault(); state.moving=0; state.turning=0; 
+/* ========== 顔写真設定 ========== */
+const createOrUpdateFace = (tex) => {
+  // 既存削除
+  const oldFace = train.object3D.getObjectByName('Face_Plate');
+  if(oldFace) train.object3D.remove(oldFace);
+
+  const geo = new THREE.PlaneGeometry(0.6, 0.6);
+  const mat = new THREE.MeshBasicMaterial({ 
+    map: tex || null,
+    color: tex ? 0xffffff : 0xffffff,
+    side: THREE.DoubleSide, 
+    transparent: true,
+    depthTest: false, depthWrite: false
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.name = 'Face_Plate';
+  mesh.renderOrder = 9999; 
+  
+  // 初期座標 (仕様)
+  mesh.position.set(1.0, 2.84, -0.5); 
+  train.object3D.add(mesh);
+};
+
+// 起動時（白板）
+train.addEventListener('model-loaded', () => {
+  if (!train.object3D.getObjectByName('Face_Plate')) {
+    createOrUpdateFace(null);
+  }
 });
 
-/* ========== 顔写真（絶対見える修正版） ========== */
+// 画像アップロード
 document.getElementById('btn-face').onclick = () => {
   const input = document.createElement('input');
   input.type = 'file'; input.accept = 'image/*';
   input.onchange = e => {
     const file = e.target.files[0];
     if (!file) return;
-
-    const oldFace = train.object3D.getObjectByName('custom_face');
-    if(oldFace) train.object3D.remove(oldFace);
-
-    const url = URL.createObjectURL(file);
-    new THREE.TextureLoader().load(url, (tex) => {
-      tex.encoding = THREE.sRGBEncoding;
-      tex.flipY = true; 
-
-      const geo = new THREE.PlaneGeometry(0.7, 0.7);
-      const mat = new THREE.MeshBasicMaterial({ 
-        map: tex, 
-        side: THREE.DoubleSide, 
-        transparent:true,
-        // ★重要：最前面表示
-        depthTest: false,
-        depthWrite: false
-      });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.name = 'custom_face';
-      mesh.renderOrder = 999; 
-
-      mesh.position.set(0, 1.7, 2.5); // 位置調整済み
-      train.object3D.add(mesh);
-    });
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.src = ev.target.result;
+      img.onload = () => {
+        // リサイズ処理
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const MAX_SIZE = 1024; 
+        let w = img.width, h = img.height;
+        if (w > h) { if (w > MAX_SIZE) { h *= MAX_SIZE/w; w = MAX_SIZE; } }
+        else { if (h > MAX_SIZE) { w *= MAX_SIZE/h; h = MAX_SIZE; } }
+        canvas.width = w; canvas.height = h;
+        ctx.drawImage(img, 0, 0, w, h);
+        
+        new THREE.TextureLoader().load(canvas.toDataURL('image/jpeg', 0.8), (tex) => {
+          tex.encoding = THREE.sRGBEncoding; tex.flipY = true; 
+          createOrUpdateFace(tex);
+        });
+      };
+    };
+    reader.readAsDataURL(file);
   };
   input.click();
 };
 
-/* その他機能 */
-document.getElementById('btn-up').onclick = () => train.object3D.position.y += 0.1;
-document.getElementById('btn-down').onclick = () => train.object3D.position.y -= 0.1;
-
-let curScale = 0.5;
-document.getElementById('btn-zoom-in').onclick = () => { 
-  curScale += 0.1; train.object3D.scale.set(curScale,curScale,curScale); 
-};
-document.getElementById('btn-zoom-out').onclick = () => { 
-  curScale = Math.max(0.1, curScale - 0.1); train.object3D.scale.set(curScale,curScale,curScale); 
-};
-
-document.getElementById('btn-capture').onclick = () => {
-  const cvs = document.querySelector('canvas');
-  cvs.toBlob(b=>{
-    const a=document.createElement('a'); 
-    a.href=URL.createObjectURL(b); 
-    a.download='ar.png'; 
-    a.click();
-  });
-};
-
-window.addEventListener('resize', () => {
-  const scene = document.querySelector('a-scene');
-  if(scene.camera) { 
-    scene.camera.aspect = window.innerWidth / window.innerHeight; 
-    scene.camera.updateProjectionMatrix(); 
+/* ========== 顔写真 微調整ボタン機能 ========== */
+const adjustFace = (axis, val) => {
+  const face = train.object3D.getObjectByName('Face_Plate');
+  if (!face) return;
+  if (axis === 'x') face.position.x += val;
+  if (axis === 'y') face.position.y += val;
+  if (axis === 'scale') {
+    const s = face.scale.x + val;
+    if (s > 0.1) face.scale.set(s, s, s);
   }
-});
+};
+
+document.getElementById('btn-face-left').onclick = () => adjustFace('x', -0.05);
+document.getElementById('btn-face-right').onclick = () => adjustFace('x', 0.05);
+document.getElementById('btn-face-up').onclick = () => adjustFace('y', 0.05);
+document.getElementById('btn-face-down').onclick = () => adjustFace('y', -0.05);
+document.getElementById('btn-face-big').onclick = () => adjustFace('scale', 0.1);
+document.getElementById('btn-face-small').onclick = () => adjustFace('scale', -0.1);
+
 </script>
 </body>
 </html>
