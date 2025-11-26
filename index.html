@@ -79,14 +79,26 @@
             rotation="0 0 0"
             scale="0.5 0.5 0.5">
     
-    <a-entity id="headlights" visible="false">
-      <a-light type="spot" color="#FFF" intensity="3" angle="30" penumbra="0.5" distance="20" position="0.6 2.85 0.2" target="#light-target"></a-light>
-      <a-sphere radius="0.12" position="0.6 2.85 0.2" material="color: #ffffcc; shader: standard; emissive: #ffffcc; emissiveIntensity: 2"></a-sphere>
-      <a-light type="spot" color="#FFF" intensity="3" angle="30" penumbra="0.5" distance="20" position="-0.6 2.85 0.2" target="#light-target"></a-light>
-      <a-sphere radius="0.12" position="-0.6 2.85 0.2" material="color: #ffffcc; shader: standard; emissive: #ffffcc; emissiveIntensity: 2"></a-sphere>
-      <a-entity id="light-target" position="0 0 -15"></a-entity>
-    </a-entity>
-  </a-entity>
+<a-entity id="headlights" visible="false">
+      
+      <a-sphere radius="0.12" position="0.6 2.85 0.3" 
+                material="color: #ffffcc; shader: flat"></a-sphere>
+      
+      <a-cone height="15" radius-bottom="3" radius-top="0.1" 
+              position="0.6 2.85 -7.0" rotation="-90 0 0"
+              material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
+      </a-cone>
+
+
+      <a-sphere radius="0.12" position="-0.6 2.85 0.3" 
+                material="color: #ffffcc; shader: flat"></a-sphere>
+      
+      <a-cone height="15" radius-bottom="3" radius-top="0.1" 
+              position="-0.6 2.85 -7.0" rotation="-90 0 0"
+              material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
+      </a-cone>
+
+    </a-entity>  </a-entity>
 </a-scene>
 
 <div id="top-ui-container">
