@@ -81,17 +81,19 @@
     
     <a-entity id="headlights" visible="false">
       
-      <a-sphere radius="0.12" position="-0.75 2.85 -0.5" 
+      <a-sphere radius="0.12" position="0.6 2.85 -0.5" 
                 material="color: #ffffcc; shader: flat"></a-sphere>
+      
       <a-cone height="15" radius-bottom="3" radius-top="0.1" 
-              position="-0.75 2.85 -8.0" rotation="90 0 0"
+              position="0.6 2.85 7.0" rotation="-90 0 0"
               material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
       </a-cone>
 
-      <a-sphere radius="0.12" position="0.75 2.85 -0.5" 
+      <a-sphere radius="0.12" position="-0.6 2.85 -0.5" 
                 material="color: #ffffcc; shader: flat"></a-sphere>
+      
       <a-cone height="15" radius-bottom="3" radius-top="0.1" 
-              position="0.75 2.85 -8.0" rotation="90 0 0"
+              position="-0.6 2.85 7.0" rotation="-90 0 0"
               material="color: #ffffcc; opacity: 0.2; transparent: true; shader: flat; side: double; depthWrite: false">
       </a-cone>
 
@@ -135,7 +137,6 @@
 </div>
 
 <script>
-/* ========== スクリプト（変更なし） ========== */
 function onResize() {
   const scene = document.querySelector('a-scene');
   const video = document.getElementById('arjs-video');
@@ -148,6 +149,7 @@ function onResize() {
 window.addEventListener('load', onResize);
 window.addEventListener('resize', onResize);
 
+/* ========== 音声・ライト制御 ========== */
 const hornAudio = document.getElementById('snd-horn');
 const runAudio = document.getElementById('snd-run');
 const headlights = document.getElementById('headlights');
@@ -189,6 +191,7 @@ document.getElementById('btn-light').onclick = function() {
   else this.classList.remove('btn-active');
 };
 
+/* ========== 車両操作 ========== */
 const train = document.querySelector('#train');
 let speed = 0.05;
 let turnSpeedInPlace = 2.0; 
